@@ -28,7 +28,7 @@ function attachExistingRemoteAudio(room) {
   });
 }
 
-export function useVoiceAgent(authToken, { onAction } = {}) {
+export function useVoiceAgent(getToken, { onAction } = {}) {
   const [greeting, setGreeting] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -109,12 +109,17 @@ export function useVoiceAgent(authToken, { onAction } = {}) {
   }, [clearStallTimer]);
 
   const connect = useCallback(async () => {
-    if (roomRef.current || isConnecting || !authToken) return;
+    if (roomRef.current || isConnecting || !getToken) return;
 
     clearStallTimer();
     setIsConnecting(true);
 
     try {
+      const authToken = await getToken();
+      if (!authToken) {
+        throw new Error('Failed to get auth token. Please sign in again.');
+      }
+
       const tokenRes = await fetch(`${API_BASE}/api/token?room=main`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -224,7 +229,7 @@ export function useVoiceAgent(authToken, { onAction } = {}) {
     } finally {
       setIsConnecting(false);
     }
-  }, [authToken, flashInterrupted, inputSampleRate, clearStallTimer, isConnecting]);
+  }, [getToken, flashInterrupted, inputSampleRate, clearStallTimer, isConnecting]);
 
   // Disconnect then reconnect in one step — used by stall recovery UI
   const reconnect = useCallback(async () => {

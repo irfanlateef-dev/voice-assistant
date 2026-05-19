@@ -29,7 +29,7 @@ const FEATURES = [
   {
     icon: Shield,
     title: 'Private & scoped',
-    desc: 'JWT authentication ensures your data is yours. Every user sees only their own tasks and notes — nothing bleeds between accounts.',
+    desc: 'Neon Auth keeps accounts scoped per user. Your tasks and notes are tied to your Neon Auth identity — nothing bleeds between accounts.',
     color: '#10b981',
   },
   {

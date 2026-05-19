@@ -19,6 +19,7 @@ import {
 } from './config_loader.js';
 import { resolveUserId } from './lib/room.js';
 import { formatDateContext } from './lib/parseDueDate.js';
+import { getUserById } from './services/userService.js';
 import { buildNoteTools } from './tools/notes.js';
 import { buildTaskTools } from './tools/tasks.js';
 
@@ -40,11 +41,19 @@ Rules:
 - Ask for clarification if the request is ambiguous.
 - Ask for verbal confirmation before deleting or cancelling a task.
 - If the user message is empty, reply with an empty message.
-- For task due dates, pass due_at as a relative phrase (today, tomorrow, next_friday, in_2_days). Never guess ISO timestamps.`;
+- For task due dates, pass due_at as a relative phrase (today, tomorrow, next_friday, in_2_days). Never guess ISO timestamps.
+- You only have access to the current logged-in user's tasks and notes. Never reference or modify another user's data.`;
 
-function buildAssistantPrompt(customPrompt) {
+function buildAssistantPrompt(customPrompt, userContext = '') {
   const base = customPrompt?.trim() || ASSISTANT_PROMPT;
-  return `${base}\n\nCurrent date and time: ${formatDateContext()}.`;
+  const parts = [base, `Current date and time: ${formatDateContext()}.`];
+  if (userContext) parts.push(userContext);
+  return parts.join('\n\n');
+}
+
+function buildUserContext(user, userId) {
+  const label = user?.name || user?.email || 'the user';
+  return `Current session user: ${label} (id: ${userId}). All task and note tools are scoped to this user only.`;
 }
 
 function buildStt() {
@@ -130,7 +139,8 @@ export default defineAgent({
     await ctx.connect();
 
     const userId = await resolveUserId(ctx.room);
-    console.log(`[session] user connected: ${userId}`);
+    const user = await getUserById(userId);
+    console.log(`[session] user connected: ${userId} (${user?.email ?? 'unknown'})`);
 
     const tools = {
       ...buildTaskTools(userId, ctx.room),
@@ -138,7 +148,10 @@ export default defineAgent({
     };
 
     const agent = new voice.Agent({
-      instructions: buildAssistantPrompt(llmCfg.system_prompt),
+      instructions: buildAssistantPrompt(
+        llmCfg.system_prompt,
+        buildUserContext(user, userId),
+      ),
       tools,
     });
 

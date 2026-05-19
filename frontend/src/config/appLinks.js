@@ -5,7 +5,7 @@ export function isAppAuthenticated() {
     const saved = localStorage.getItem(AUTH_KEY);
     if (!saved) return false;
     const parsed = JSON.parse(saved);
-    return Boolean(parsed?.token);
+    return Boolean(parsed?.user);
   } catch {
     return false;
   }

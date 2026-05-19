@@ -17,7 +17,7 @@ Built with LiveKit (WebRTC), Deepgram Flux STT + Aura TTS, an LLM via OpenRouter
 
 ```
 Browser (React)
-    │  REST + JWT          WebRTC audio
+    │  REST + JWT         WebRTC audio
     ▼                      ▼
 Express API (:8000)    LiveKit Cloud
     │                      │
@@ -92,10 +92,10 @@ npm run migration:run    # apply migrations
 npm run seed             # optional: demo user + sample data
 ```
 
-Demo login after seeding:
+Demo credentials after seeding:
 
 - **Email:** `demo@voice-agent.local`
-- **Name:** Demo User
+- **Password:** `demo1234`
 
 ### 4. Run (3 terminals)
 
@@ -146,8 +146,10 @@ npm run migration:run
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/login` | Email login → JWT |
-| GET | `/api/token` | LiveKit token (auth required) |
+| POST | `/api/auth/signup` | Register (email + password) → JWT |
+| POST | `/api/auth/login` | Login → JWT |
+| GET | `/api/auth/me` | Current user (JWT required) |
+| GET | `/api/token` | LiveKit token (JWT required) |
 | GET | `/api/tasks` | List user tasks |
 | POST | `/api/tasks` | Create task |
 | PATCH | `/api/tasks/:id/complete` | Mark task done |
@@ -157,9 +159,9 @@ npm run migration:run
 
 ## Security notes
 
-- Never commit `.env` files or the `keys` file — they are in `.gitignore`
+- Never commit `.env` files — they are in `.gitignore`
 - Rotate any credentials that were shared or committed by mistake
-- Use a strong `JWT_SECRET` in production
+- Use a strong random `JWT_SECRET` in production
 
 ## License
 

@@ -1,15 +1,34 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoginForm from '../components/LoginForm.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, isLoading, error } = useAuth();
+  const [mode, setMode] = useState('login');
+  const { login, signup, isLoading, error, clearError } = useAuth();
 
-  const handleLogin = async (email, name) => {
-    await login(email, name);
-    navigate('/app', { replace: true });
+  const goToApp = () => navigate('/app', { replace: true });
+
+  const handleLogin = async (credentials) => {
+    await login(credentials);
+    goToApp();
   };
 
-  return <LoginForm onLogin={handleLogin} isLoading={isLoading} error={error} />;
+  const handleSignup = async (payload) => {
+    await signup(payload);
+    goToApp();
+  };
+
+  return (
+    <LoginForm
+      mode={mode}
+      onModeChange={setMode}
+      onLogin={handleLogin}
+      onSignup={handleSignup}
+      isLoading={isLoading}
+      error={error}
+      onClearError={clearError}
+    />
+  );
 }

@@ -8,10 +8,11 @@ import express from 'express';
 import { AccessToken } from 'livekit-server-sdk';
 
 import { signToken } from './lib/auth.js';
+import { loginSchema, signupSchema } from './lib/authSchemas.js';
 import { authMiddleware } from './middleware/auth.js';
 import * as noteService from './services/noteService.js';
 import * as taskService from './services/taskService.js';
-import { findOrCreateUser } from './services/userService.js';
+import { authenticateUser, createUser, toPublicUser } from './services/userService.js';
 
 dotenv.config();
 
@@ -28,7 +29,7 @@ const defaultOrigins = SERVE_FRONTEND
 
 const allowedOrigins = (process.env.CORS_ORIGINS || defaultOrigins.join(','))
   .split(',')
-  .map((origin) => origin.trim())
+  .map((o) => o.trim())
   .filter(Boolean);
 
 const app = express();
@@ -51,30 +52,59 @@ app.use(
 );
 app.use(express.json());
 
-app.post('/api/auth/login', async (req, res) => {
-  const { email, name } = req.body ?? {};
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
-  if (!email?.trim()) {
-    res.status(400).json({ error: 'email is required' });
+app.post('/api/auth/signup', async (req, res) => {
+  const parsed = signupSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid input' });
     return;
   }
 
+  const { name, email, password } = parsed.data;
   try {
-    const user = await findOrCreateUser(email, name);
+    const result = await createUser({ name, email, password });
+    if (result.error) {
+      res.status(409).json({ error: result.error });
+      return;
+    }
+    const user = toPublicUser(result.user);
     const token = await signToken(user);
-    res.json({
-      token,
-      user: { id: user.id, email: user.email, name: user.name },
-    });
+    res.status(201).json({ token, user });
+  } catch (err) {
+    console.error('Signup failed:', err);
+    res.status(500).json({ error: 'Signup failed' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid input' });
+    return;
+  }
+
+  const { email, password } = parsed.data;
+  try {
+    const result = await authenticateUser(email, password);
+    if (result.error) {
+      res.status(401).json({ error: result.error });
+      return;
+    }
+    const user = toPublicUser(result.user);
+    const token = await signToken(user);
+    res.json({ token, user });
   } catch (err) {
     console.error('Login failed:', err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-app.get('/api/auth/me', authMiddleware, async (req, res) => {
+app.get('/api/auth/me', authMiddleware, (req, res) => {
   res.json({ user: req.user });
 });
+
+// ── LiveKit token ─────────────────────────────────────────────────────────────
 
 app.get('/api/token', authMiddleware, async (req, res) => {
   const { room } = req.query;
@@ -95,21 +125,15 @@ app.get('/api/token', authMiddleware, async (req, res) => {
       metadata: JSON.stringify({ email: user.email, name: user.name }),
     },
   );
-
-  token.addGrant({
-    roomJoin: true,
-    room: String(room),
-    canPublish: true,
-    canSubscribe: true,
-  });
-
+  token.addGrant({ roomJoin: true, room: String(room), canPublish: true, canSubscribe: true });
   res.json({ token: await token.toJwt() });
 });
 
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+
 app.get('/api/tasks', authMiddleware, async (req, res) => {
   try {
-    const status = req.query.status || 'pending';
-    const tasks = await taskService.listTasks(req.user.id, { status });
+    const tasks = await taskService.listTasks(req.user.id, { status: req.query.status || 'pending' });
     res.json({ tasks });
   } catch (err) {
     console.error('List tasks failed:', err);
@@ -119,18 +143,12 @@ app.get('/api/tasks', authMiddleware, async (req, res) => {
 
 app.post('/api/tasks', authMiddleware, async (req, res) => {
   const { title, description, dueAt } = req.body ?? {};
-
   if (!title?.trim()) {
     res.status(400).json({ error: 'title is required' });
     return;
   }
-
   try {
-    const task = await taskService.createTask(req.user.id, {
-      title,
-      description,
-      dueAt,
-    });
+    const task = await taskService.createTask(req.user.id, { title, description, dueAt });
     res.status(201).json({ task });
   } catch (err) {
     console.error('Create task failed:', err);
@@ -140,13 +158,8 @@ app.post('/api/tasks', authMiddleware, async (req, res) => {
 
 app.patch('/api/tasks/:id/complete', authMiddleware, async (req, res) => {
   try {
-    const result = await taskService.completeTask(req.user.id, {
-      taskId: req.params.id,
-    });
-    if (result.error) {
-      res.status(404).json({ error: result.error });
-      return;
-    }
+    const result = await taskService.completeTask(req.user.id, { taskId: req.params.id });
+    if (result.error) { res.status(404).json({ error: result.error }); return; }
     res.json({ task: result.task });
   } catch (err) {
     console.error('Complete task failed:', err);
@@ -154,10 +167,11 @@ app.patch('/api/tasks/:id/complete', authMiddleware, async (req, res) => {
   }
 });
 
+// ── Notes ─────────────────────────────────────────────────────────────────────
+
 app.get('/api/notes', authMiddleware, async (req, res) => {
   try {
-    const limit = Number(req.query.limit) || 20;
-    const notes = await noteService.listNotes(req.user.id, { limit });
+    const notes = await noteService.listNotes(req.user.id, { limit: Number(req.query.limit) || 20 });
     res.json({ notes });
   } catch (err) {
     console.error('List notes failed:', err);
@@ -167,12 +181,10 @@ app.get('/api/notes', authMiddleware, async (req, res) => {
 
 app.post('/api/notes', authMiddleware, async (req, res) => {
   const { content, tags } = req.body ?? {};
-
   if (!content?.trim()) {
     res.status(400).json({ error: 'content is required' });
     return;
   }
-
   try {
     const note = await noteService.createNote(req.user.id, { content, tags });
     res.status(201).json({ note });
@@ -182,45 +194,31 @@ app.post('/api/notes', authMiddleware, async (req, res) => {
   }
 });
 
+// ── Misc ──────────────────────────────────────────────────────────────────────
+
 app.get('/api/config', (_req, res) => {
-  const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
-  res.json(config);
+  res.json(JSON.parse(readFileSync(CONFIG_PATH, 'utf8')));
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({
-    ok: true,
-    serveFrontend: SERVE_FRONTEND,
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ ok: true, serveFrontend: SERVE_FRONTEND, timestamp: new Date().toISOString() });
 });
 
 if (SERVE_FRONTEND) {
   if (!existsSync(FRONTEND_DIST)) {
-    console.error(
-      `[server] frontend dist missing at ${FRONTEND_DIST}. Build the frontend first.`,
-    );
+    console.error(`[server] frontend dist missing at ${FRONTEND_DIST}. Build the frontend first.`);
     process.exit(1);
   }
-
   app.use(express.static(FRONTEND_DIST, { index: false }));
-
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      next();
-      return;
-    }
+    if (req.path.startsWith('/api')) { next(); return; }
     res.sendFile(join(FRONTEND_DIST, 'index.html'));
   });
-
   console.log(`[server] serving frontend from ${FRONTEND_DIST}`);
 }
 
 const PORT = Number(process.env.PORT) || 8000;
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`API server listening on http://0.0.0.0:${PORT}`);
-  if (SERVE_FRONTEND) {
-    console.log(`App available at http://localhost:${PORT}`);
-  }
+  if (SERVE_FRONTEND) console.log(`App available at http://localhost:${PORT}`);
 });

@@ -12,14 +12,14 @@ import { useVoiceAgent } from '../hooks/useVoiceAgent.js';
 
 export default function WorkspacePage() {
   const navigate = useNavigate();
-  const { user, token, logout } = useAuth();
+  const { user, getToken, logout } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleAction = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
 
-  const { tasks, notes, isLoading: dataLoading } = useAssistantData(token, refreshKey);
+  const { tasks, notes, isLoading: dataLoading } = useAssistantData(getToken, refreshKey);
 
   const {
     connect,
@@ -34,7 +34,7 @@ export default function WorkspacePage() {
     isMuted,
     toggleMute,
     greeting,
-  } = useVoiceAgent(token, { onAction: handleAction });
+  } = useVoiceAgent(getToken, { onAction: handleAction });
 
   const latestAssistantMessage = useMemo(() => {
     for (let i = transcript.length - 1; i >= 0; i -= 1) {
