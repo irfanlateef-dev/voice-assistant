@@ -1,6 +1,7 @@
 import { llm } from '@livekit/agents';
 import { z } from 'zod';
 
+import { parseDueDate } from '../lib/parseDueDate.js';
 import * as taskService from '../services/taskService.js';
 
 function publishAction(room, payload) {
@@ -18,13 +19,19 @@ export function buildTaskTools(userId, room) {
       parameters: z.object({
         title: z.string().describe('Short task title'),
         description: z.string().optional().describe('Optional extra details'),
-        due_at: z.string().optional().describe('Optional due date ISO string'),
+        due_at: z
+          .string()
+          .optional()
+          .describe(
+            'Due date as a relative phrase: today, tomorrow, next_monday, in_3_days. Do not invent ISO dates — the server resolves relative phrases using the real clock.',
+          ),
       }),
       execute: async ({ title, description, due_at }) => {
+        const dueAt = parseDueDate(due_at);
         const task = await taskService.createTask(userId, {
           title,
           description,
-          dueAt: due_at,
+          dueAt,
         });
         publishAction(room, { action: 'task_created', data: task });
         return { success: true, task };

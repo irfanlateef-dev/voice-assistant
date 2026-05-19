@@ -18,6 +18,7 @@ import {
   loadConfig,
 } from './config_loader.js';
 import { resolveUserId } from './lib/room.js';
+import { formatDateContext } from './lib/parseDueDate.js';
 import { buildNoteTools } from './tools/notes.js';
 import { buildTaskTools } from './tools/tasks.js';
 
@@ -38,7 +39,13 @@ Rules:
 - Confirm what you did after every tool action.
 - Ask for clarification if the request is ambiguous.
 - Ask for verbal confirmation before deleting or cancelling a task.
-- If the user message is empty, reply with an empty message.`;
+- If the user message is empty, reply with an empty message.
+- For task due dates, pass due_at as a relative phrase (today, tomorrow, next_friday, in_2_days). Never guess ISO timestamps.`;
+
+function buildAssistantPrompt(customPrompt) {
+  const base = customPrompt?.trim() || ASSISTANT_PROMPT;
+  return `${base}\n\nCurrent date and time: ${formatDateContext()}.`;
+}
 
 function buildStt() {
   if (sttCfg.version === 'v2') {
@@ -131,7 +138,7 @@ export default defineAgent({
     };
 
     const agent = new voice.Agent({
-      instructions: llmCfg.system_prompt?.trim() || ASSISTANT_PROMPT,
+      instructions: buildAssistantPrompt(llmCfg.system_prompt),
       tools,
     });
 
