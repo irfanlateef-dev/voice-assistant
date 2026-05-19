@@ -1,0 +1,62 @@
+name: voice-agent
+
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: agent-base
+    command: ["node", "scripts/migrate.js"]
+    env_file:
+      - .env
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        VITE_LIVEKIT_URL: ${LIVEKIT_URL}
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      SERVE_FRONTEND: "1"
+      PORT: 8000
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: agent
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+  seed:
+    profiles: ["seed"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: agent-base
+    command: ["node", "scripts/seed.js"]
+    env_file:
+      - .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"

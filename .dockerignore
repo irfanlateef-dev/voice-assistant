@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (reinstalled in container)
+**/node_modules
+
+# Secrets & local env
+.env
+.env.*
+!.env.example
+keys
+agent/.env
+frontend/.env
+
+# Build artifacts (rebuilt in container)
+frontend/dist
+**/.vite
+
+# Editor & OS
+.DS_Store
+.idea
+.vscode
+**/*.log
+
+# Legacy / dev
+agent/.venv
+coverage
+landing-page

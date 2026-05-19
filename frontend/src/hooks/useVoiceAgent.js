@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Room, RoomEvent, Track } from 'livekit-client';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { API_BASE } from '../config/api.js';
 
 // How long (ms) to wait for agent reply after user stops speaking before
 // marking the session as stalled.

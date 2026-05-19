@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,13 +15,37 @@ import { findOrCreateUser } from './services/userService.js';
 
 dotenv.config();
 
-const CONFIG_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'config.json');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
+const CONFIG_PATH = join(ROOT, 'config.json');
+const FRONTEND_DIST = join(ROOT, 'frontend', 'dist');
+const SERVE_FRONTEND =
+  process.env.SERVE_FRONTEND === '1' || process.env.NODE_ENV === 'production';
+
+const defaultOrigins = SERVE_FRONTEND
+  ? ['http://localhost:8000']
+  : ['http://localhost:5173', 'http://localhost:4173'];
+
+const allowedOrigins = (process.env.CORS_ORIGINS || defaultOrigins.join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const app = express();
 
+if (process.env.TRUST_PROXY === '1') {
+  app.set('trust proxy', 1);
+}
+
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   }),
 );
@@ -163,8 +187,40 @@ app.get('/api/config', (_req, res) => {
   res.json(config);
 });
 
-const PORT = 8000;
+app.get('/api/health', (_req, res) => {
+  res.json({
+    ok: true,
+    serveFrontend: SERVE_FRONTEND,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+if (SERVE_FRONTEND) {
+  if (!existsSync(FRONTEND_DIST)) {
+    console.error(
+      `[server] frontend dist missing at ${FRONTEND_DIST}. Build the frontend first.`,
+    );
+    process.exit(1);
+  }
+
+  app.use(express.static(FRONTEND_DIST, { index: false }));
+
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      next();
+      return;
+    }
+    res.sendFile(join(FRONTEND_DIST, 'index.html'));
+  });
+
+  console.log(`[server] serving frontend from ${FRONTEND_DIST}`);
+}
+
+const PORT = Number(process.env.PORT) || 8000;
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`API server listening on http://localhost:${PORT}`);
+  console.log(`API server listening on http://0.0.0.0:${PORT}`);
+  if (SERVE_FRONTEND) {
+    console.log(`App available at http://localhost:${PORT}`);
+  }
 });
