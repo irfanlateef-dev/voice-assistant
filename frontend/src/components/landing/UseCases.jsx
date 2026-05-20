@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
 import { Briefcase, Lightbulb, Users } from 'lucide-react';
+import { useReveal } from '../../hooks/useReveal.js';
 
 const CASES = [
   {
@@ -20,7 +20,7 @@ const CASES = [
     icon: Lightbulb,
     title: 'Hands-free note capture',
     persona: 'Solo founders & creators',
-    summary: 'Save ideas, reminders, and rough thoughts instantly — no unlocking your phone or opening a notes app.',
+    summary: "Save ideas, reminders, and rough thoughts instantly — no unlocking your phone or opening a notes app.",
     examples: [
       'Note: pitch angle for the product demo',
       'Save a note about pricing tiers',
@@ -33,7 +33,7 @@ const CASES = [
     icon: Users,
     title: 'Standup & planning',
     persona: 'Remote team leads',
-    summary: 'Log decisions and next steps right after standup so nothing slips through before the day gets away from you.',
+    summary: "Log decisions and next steps right after standup so nothing slips through before the day gets away from you.",
     examples: [
       'Add tasks for the API migration sprint',
       'Note: team agreed to ship v2 on Thursday',
@@ -43,17 +43,10 @@ const CASES = [
   },
 ];
 
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.15 } },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.55 } },
-};
-
 export default function UseCases() {
+  const headerRef = useReveal();
+  const gridRef   = useReveal();
+
   return (
     <section id="use-cases" className="py-28 relative overflow-hidden">
       <div
@@ -64,13 +57,8 @@ export default function UseCases() {
       />
 
       <div className="max-w-7xl mx-auto px-6 relative">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.55 }}
-          className="text-center mb-16"
-        >
+
+        <div ref={headerRef} className="reveal text-center mb-16">
           <p className="text-indigo-400 text-sm font-semibold uppercase tracking-widest mb-3">
             Use cases
           </p>
@@ -80,22 +68,18 @@ export default function UseCases() {
           <p className="text-[#94a3b8] text-lg max-w-xl mx-auto">
             If your hands are busy, your voice isn't.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        <div
+          ref={gridRef}
+          className="reveal-group grid grid-cols-1 md:grid-cols-3 gap-6"
         >
           {CASES.map((c) => {
             const Icon = c.icon;
             return (
-              <motion.article
+              <article
                 key={c.title}
-                variants={cardVariants}
-                className="glass-card p-7 flex flex-col gap-5 relative overflow-hidden"
+                className="reveal-item glass-card p-7 flex flex-col gap-5 relative overflow-hidden"
                 style={{ borderLeft: `3px solid ${c.accent}` }}
               >
                 <div
@@ -118,9 +102,7 @@ export default function UseCases() {
                   </div>
                 </div>
 
-                <p className="text-[#94a3b8] text-sm leading-relaxed m-0">
-                  {c.summary}
-                </p>
+                <p className="text-[#94a3b8] text-sm leading-relaxed m-0">{c.summary}</p>
 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-[#64748b] mb-2.5 m-0">
@@ -132,7 +114,7 @@ export default function UseCases() {
                         key={line}
                         className="text-sm text-indigo-200/90 px-3 py-2 rounded-lg border border-indigo-500/15 bg-indigo-500/8 leading-snug"
                       >
-                        “{line}”
+                        "{line}"
                       </li>
                     ))}
                   </ul>
@@ -148,10 +130,10 @@ export default function UseCases() {
                     </span>
                   ))}
                 </div>
-              </motion.article>
+              </article>
             );
           })}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

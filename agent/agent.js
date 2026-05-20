@@ -5,8 +5,8 @@ import {
   voice,
 } from '@livekit/agents';
 import * as deepgram from '@livekit/agents-plugin-deepgram';
-import * as google from '@livekit/agents-plugin-google';
 import * as openai from '@livekit/agents-plugin-openai';
+import * as silero from '@livekit/agents-plugin-silero';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 
@@ -78,19 +78,35 @@ function buildTurnHandling() {
   const isFlux = sttCfg.version === 'v2';
 
   return {
+    // Flux v2 sends linguistically-aware end-of-utterance signals — let it
+    // decide when the user's turn is over (not raw silence timers).
     ...(isFlux ? { turnDetection: 'stt' } : {}),
+
     interruption: {
       enabled: true,
       minDuration: 0,
       minWords: 0,
+      // When the VAD fires during agent speech, stop immediately.
+      // If it turns out to be a false interruption (background noise / very
+      // short sound), automatically resume the agent's speech.
+      resumeFalseInterruption: true,
+      falseInterruptionTimeout: 1500,
+      mode: 'adaptive',
     },
+
     endpointing: {
-      minDelay: isFlux ? 0 : 300,
-      maxDelay: isFlux ? 800 : 2000,
+      // Dynamic mode learns the user's natural pause rhythm instead of using
+      // a fixed timeout — avoids cutting off slow speakers or waiting too long.
+      mode: 'dynamic',
+      minDelay: 0,
+      maxDelay: isFlux ? 600 : 1500,
     },
+
     preemptiveGeneration: {
       enabled: isFlux,
-      preemptiveTts: false,
+      // Start TTS synthesis as soon as the first LLM sentence arrives — cuts
+      // perceived latency by 300-800 ms vs waiting for the full response.
+      preemptiveTts: isFlux,
     },
   };
 }
@@ -99,7 +115,9 @@ function buildLlm() {
   const { provider_type: provider, model } = llmCfg;
 
   if (provider === 'google') {
-    return new google.LLM({ model });
+    return import('@livekit/agents-plugin-google').then(
+      (google) => new google.LLM({ model }),
+    );
   }
 
   if (provider === 'openai') {
@@ -135,6 +153,24 @@ function publishData(room, payload) {
 }
 
 export default defineAgent({
+  // prewarm: runs once when the worker process starts, before any job is
+  // assigned. Loading the Silero ONNX model here means it is already in memory
+  // when a user connects — zero cold-start delay on first session.
+  prewarm: async (proc) => {
+    proc.userData.vad = await silero.VAD.load({
+      // Trigger interruption after just 50 ms of detected speech — near-instant.
+      minSpeechDuration: 0.05,
+      // 150 ms of silence marks the end of the user's utterance for VAD.
+      // Flux v2's EOT signals will further refine this.
+      minSilenceDuration: 0.15,
+      // Capture 150 ms of audio before the VAD fires so we never miss the
+      // start of a word.
+      prefixPaddingDuration: 0.15,
+      // Standard sensitivity — detects real speech without firing on noise.
+      activationThreshold: 0.5,
+    });
+  },
+
   entry: async (ctx) => {
     await ctx.connect();
 
@@ -156,8 +192,14 @@ export default defineAgent({
     });
 
     const session = new voice.AgentSession({
+      // The VAD gives the agent ears at the audio level — it detects the
+      // exact millisecond the user starts speaking and fires the interruption
+      // signal immediately, without waiting for a network round-trip to
+      // Deepgram. Without this, the agent can only know the user spoke AFTER
+      // the STT has already buffered and processed audio, which is too late.
+      vad: ctx.proc.userData.vad,
       stt: buildStt(),
-      llm: buildLlm(),
+      llm: await buildLlm(),
       tts: new deepgram.TTS({
         model: ttsCfg.model,
         encoding: ttsCfg.encoding,

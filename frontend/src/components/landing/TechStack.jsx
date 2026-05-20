@@ -1,28 +1,25 @@
-import { motion } from 'framer-motion';
+import { useReveal } from '../../hooks/useReveal.js';
 
 const BADGES = [
-  { emoji: '🎙',  name: 'LiveKit',        desc: 'WebRTC room & audio routing' },
-  { emoji: '🔊',  name: 'Deepgram',       desc: 'Flux v2 STT + Aura TTS' },
-  { emoji: '🧠',  name: 'OpenRouter',     desc: 'LLM reasoning & tool calls' },
-  { emoji: '🗄',  name: 'Neon',           desc: 'Serverless PostgreSQL' },
-  { emoji: '⚛️', name: 'React',          desc: 'Real-time frontend UI' },
-  { emoji: '🟢',  name: 'Node.js',        desc: 'Agent worker & API server' },
+  { emoji: '🎙',  name: 'LiveKit',    desc: 'WebRTC room & audio routing' },
+  { emoji: '🔊',  name: 'Deepgram',   desc: 'Flux v2 STT + Aura TTS' },
+  { emoji: '🧠',  name: 'OpenRouter', desc: 'LLM reasoning & tool calls' },
+  { emoji: '🗄',  name: 'Neon',       desc: 'Serverless PostgreSQL' },
+  { emoji: '⚛️', name: 'React',      desc: 'Real-time frontend UI' },
+  { emoji: '🟢',  name: 'Node.js',    desc: 'Agent worker & API server' },
 ];
 
 const MARQUEE_ITEMS = [...BADGES, ...BADGES];
 
 export default function TechStack() {
+  const headerRef = useReveal();
+  const badgesRef = useReveal();
+
   return (
     <section className="py-24" style={{ background: '#0a0f1e' }}>
       <div className="max-w-7xl mx-auto px-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.55 }}
-          className="text-center mb-14"
-        >
+
+        <div ref={headerRef} className="reveal text-center mb-14">
           <p className="text-indigo-400 text-sm font-semibold uppercase tracking-widest mb-3">
             The stack
           </p>
@@ -32,15 +29,11 @@ export default function TechStack() {
           <p className="text-[#94a3b8] text-lg max-w-xl mx-auto">
             Every layer chosen for reliability and speed.
           </p>
-        </motion.div>
+        </div>
 
-        {/* Badges row */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.55 }}
-          className="flex flex-wrap justify-center gap-4 mb-14"
+        <div
+          ref={badgesRef}
+          className="reveal flex flex-wrap justify-center gap-4 mb-14"
         >
           {BADGES.map((b) => (
             <div
@@ -54,9 +47,8 @@ export default function TechStack() {
               </div>
             </div>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Marquee strip */}
         <div className="marquee-wrapper opacity-30 select-none" aria-hidden="true">
           <div className="marquee-track">
             {MARQUEE_ITEMS.map((b, i) => (

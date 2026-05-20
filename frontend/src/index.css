@@ -269,6 +269,95 @@ body {
   to { stroke-dashoffset: 0; }
 }
 
+/* ─── Scroll-reveal system (replaces framer-motion) ─────────────── */
+
+/* Single element: fades up when data-visible is set */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.reveal[data-visible] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Right panel hero (scale + fade) */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.7s ease 0.3s, transform 0.7s ease 0.3s;
+}
+
+.reveal-scale[data-visible] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Stagger container: triggers child items when parent enters view */
+.reveal-group .reveal-item {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.reveal-group[data-visible] .reveal-item:nth-child(1) { opacity: 1; transform: none; transition-delay: 0ms; }
+.reveal-group[data-visible] .reveal-item:nth-child(2) { opacity: 1; transform: none; transition-delay: 100ms; }
+.reveal-group[data-visible] .reveal-item:nth-child(3) { opacity: 1; transform: none; transition-delay: 200ms; }
+.reveal-group[data-visible] .reveal-item:nth-child(4) { opacity: 1; transform: none; transition-delay: 300ms; }
+.reveal-group[data-visible] .reveal-item:nth-child(5) { opacity: 1; transform: none; transition-delay: 400ms; }
+.reveal-group[data-visible] .reveal-item:nth-child(6) { opacity: 1; transform: none; transition-delay: 500ms; }
+
+/* SVG connector line — fades in when parent group enters view */
+.svg-connector {
+  opacity: 0;
+  transition: opacity 1.2s ease 0.3s;
+}
+
+.reveal-group[data-visible] .svg-connector {
+  opacity: 1;
+}
+
+/* Hero animations — triggered on mount (not scroll) */
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes hero-word-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes hero-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: none; }
+}
+
+.hero-fade-up {
+  opacity: 0;
+  animation: hero-fade-up 0.5s ease forwards;
+}
+
+.hero-word {
+  display: inline-block;
+  opacity: 0;
+  animation: hero-word-up 0.45s ease forwards;
+}
+
+.hero-scale-in {
+  opacity: 0;
+  animation: hero-scale-in 0.7s ease 0.3s forwards;
+}
+
+/* Transcript bubble appear (landing demo) */
+.bubble-appear {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: transcript-appear 0.3s ease forwards;
+}
+
 /* ─── Focus styles ───────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--accent-indigo);

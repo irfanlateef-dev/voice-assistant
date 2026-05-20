@@ -1,18 +1,18 @@
-import { motion } from 'framer-motion';
 import AppLink from './AppLink.jsx';
 import { getAppCtaLabel } from '../../config/appLinks.js';
+import { useReveal } from '../../hooks/useReveal.js';
 
 export default function CTA() {
+  const contentRef = useReveal();
+
   return (
     <section
       id="cta"
       className="relative py-32 overflow-hidden"
       style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)' }}
     >
-      {/* Noise overlay */}
       <div className="noise-overlay" />
 
-      {/* Radial glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -20,7 +20,6 @@ export default function CTA() {
         }}
       />
 
-      {/* Floating blobs */}
       <div
         className="absolute -top-32 -left-32 w-96 h-96 rounded-full pointer-events-none"
         style={{ background: 'rgba(99,102,241,0.25)', filter: 'blur(80px)' }}
@@ -31,12 +30,9 @@ export default function CTA() {
       />
 
       <div className="max-w-3xl mx-auto px-6 text-center relative">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="flex flex-col items-center gap-7"
+        <div
+          ref={contentRef}
+          className="reveal flex flex-col items-center gap-7"
         >
           <p className="text-indigo-300 text-sm font-semibold uppercase tracking-widest">
             Get started for free
@@ -59,9 +55,9 @@ export default function CTA() {
           </AppLink>
 
           <p className="text-indigo-300/60 text-sm m-0">
-            2,000+ users · Sub-second latency · Built on LiveKit + Deepgram
+            Sub-second latency · Built on LiveKit + Deepgram
           </p>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

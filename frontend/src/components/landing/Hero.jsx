@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import AppLink from './AppLink.jsx';
 import { getAppCtaLabel } from '../../config/appLinks.js';
 
@@ -96,19 +95,16 @@ function LiveSessionCard() {
       >
         {TRANSCRIPT_SEQUENCE.map((item, i) =>
           visible.includes(i) ? (
-            <motion.div
+            <div
               key={i}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`text-xs px-3 py-1.5 rounded-lg max-w-[90%] shrink-0 ${
+              className={`bubble-appear text-xs px-3 py-1.5 rounded-lg max-w-[90%] shrink-0 ${
                 item.role === 'user'
                   ? 'self-end bg-indigo-500/20 text-indigo-200 border border-indigo-500/20'
                   : 'self-start bg-white/[0.06] text-slate-300 border border-white/[0.08]'
               }`}
             >
               {item.text}
-            </motion.div>
+            </div>
           ) : null,
         )}
       </div>
@@ -116,15 +112,9 @@ function LiveSessionCard() {
   );
 }
 
-const wordVariants = {
-  hidden: { opacity: 0, y: 18 },
-  visible: (i) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.45 } }),
-};
-
 export default function Hero() {
   return (
     <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
-      {/* Background blobs */}
       <div className="noise-overlay" />
       <div className="blob blob-1" />
       <div className="blob blob-2" />
@@ -135,11 +125,7 @@ export default function Hero() {
           {/* ── Left: text ── */}
           <div className="flex flex-col gap-8">
             {/* Eyebrow badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
+            <div className="hero-fade-up" style={{ animationDelay: '0s' }}>
               <span
                 className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-indigo-300 border"
                 style={{ borderColor: 'rgba(99,102,241,0.4)', background: 'rgba(99,102,241,0.1)' }}
@@ -147,57 +133,47 @@ export default function Hero() {
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
                 Powered by Deepgram + LiveKit
               </span>
-            </motion.div>
+            </div>
 
             {/* Headline */}
             <h1 className="text-[3.5rem] sm:text-[4rem] lg:text-[4.75rem] font-extrabold leading-[1.08] tracking-tight">
               <div className="flex flex-wrap gap-x-4">
                 {HEADLINE_WORDS_1.map((word, i) => (
-                  <motion.span
+                  <span
                     key={word}
-                    custom={i}
-                    initial="hidden"
-                    animate="visible"
-                    variants={wordVariants}
-                    className="text-white"
+                    className="hero-word text-white"
+                    style={{ animationDelay: `${i * 0.08}s` }}
                   >
                     {word}
-                  </motion.span>
+                  </span>
                 ))}
               </div>
               <div className="flex flex-wrap gap-x-4 mt-1">
                 {HEADLINE_WORDS_2.map((word, i) => (
-                  <motion.span
+                  <span
                     key={word}
-                    custom={HEADLINE_WORDS_1.length + i}
-                    initial="hidden"
-                    animate="visible"
-                    variants={wordVariants}
-                    className={i === 1 ? 'gradient-text' : 'text-white'}
+                    className={`hero-word ${i === 1 ? 'gradient-text' : 'text-white'}`}
+                    style={{ animationDelay: `${(HEADLINE_WORDS_1.length + i) * 0.08}s` }}
                   >
                     {word}
-                  </motion.span>
+                  </span>
                 ))}
               </div>
             </h1>
 
             {/* Sub-headline */}
-            <motion.p
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.55, duration: 0.5 }}
-              className="text-lg text-[#94a3b8] leading-relaxed max-w-xl"
+            <p
+              className="hero-fade-up text-lg text-[#94a3b8] leading-relaxed max-w-xl"
+              style={{ animationDelay: '0.55s' }}
             >
               Speak naturally. Your AI assistant creates tasks, captures notes, and manages
               your to-do list — without touching a keyboard.
-            </motion.p>
+            </p>
 
             {/* CTA buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7, duration: 0.45 }}
-              className="flex flex-wrap gap-4"
+            <div
+              className="hero-fade-up flex flex-wrap gap-4"
+              style={{ animationDelay: '0.7s' }}
             >
               <AppLink
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold text-white no-underline transition-all duration-200 hover:brightness-110 hover:shadow-xl hover:shadow-indigo-500/30"
@@ -211,14 +187,12 @@ export default function Hero() {
               >
                 See how it works
               </a>
-            </motion.div>
+            </div>
 
             {/* Social proof */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.9, duration: 0.5 }}
-              className="flex items-center gap-4 mt-2"
+            <div
+              className="hero-fade-up flex items-center gap-4 mt-2"
+              style={{ animationDelay: '0.9s' }}
             >
               <div className="flex -space-x-2">
                 {['#6366f1','#a855f7','#22d3ee','#ec4899','#f59e0b'].map((c, i) => (
@@ -235,17 +209,11 @@ export default function Hero() {
                 <p className="text-sm font-semibold text-white m-0">2,000+ users active</p>
                 <p className="text-xs text-[#94a3b8] m-0">★★★★★ Loved by builders</p>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* ── Right: visual ── */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3, duration: 0.7, ease: 'easeOut' }}
-            className="flex flex-col items-center gap-6 relative min-h-[580px] justify-center"
-          >
-            {/* Online badge */}
+          <div className="hero-scale-in flex flex-col items-center gap-6 relative min-h-[580px] justify-center">
             <div
               className="absolute top-0 right-4 lg:right-0 z-10 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold text-emerald-300 border border-emerald-500/30"
               style={{ background: 'rgba(16,185,129,0.12)' }}
@@ -256,7 +224,7 @@ export default function Hero() {
 
             <SiriOrb />
             <LiveSessionCard />
-          </motion.div>
+          </div>
 
         </div>
       </div>
