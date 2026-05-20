@@ -1,0 +1,16 @@
+{
+  "name": "VoiceAgent",
+  "short_name": "VoiceAgent",
+  "description": "AI voice assistant for tasks and notes",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "theme_color": "#0f1424",
+  "background_color": "#0f1424",
+  "display": "standalone"
+}
