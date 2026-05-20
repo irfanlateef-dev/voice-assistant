@@ -23,9 +23,12 @@ export function getSttSettings(cfg) {
 
   // Deepgram Flux v2 rejects out-of-range params with HTTP 400 and closes the stream.
   // Valid ranges: eot_threshold 0.5–0.9, eager_eot_threshold 0.3–0.9, eot_timeout_ms 500–10000
-  const eagerEot = listen.eager_eot_threshold ?? 0.5;
+  // eager_eot_threshold is optional — only set it in config.json when you want
+  // speculative LLM starts before the user fully finishes speaking. With tool
+  // calling it creates parallel speech handles and can orphan tool results.
+  const eagerEot = listen.eager_eot_threshold ?? null;
   const eot = listen.eot_threshold ?? 0.6;
-  const eotTimeout = listen.eot_timeout_ms ?? 1500;
+  const eotTimeout = listen.eot_timeout_ms ?? 2000;
 
   return {
     model: listen.model,
@@ -33,7 +36,8 @@ export function getSttSettings(cfg) {
     encoding: audioIn.encoding,
     sample_rate: audioIn.sample_rate,
     language: 'en',
-    eager_eot_threshold: isFlux ? clamp(eagerEot, 0.3, 0.9) : eagerEot,
+    eager_eot_threshold:
+      eagerEot != null && isFlux ? clamp(eagerEot, 0.3, 0.9) : null,
     eot_threshold: isFlux ? clamp(eot, 0.5, 0.9) : eot,
     eot_timeout_ms: isFlux ? clamp(eotTimeout, 500, 10000) : eotTimeout,
   };

@@ -58,13 +58,16 @@ function buildUserContext(user, userId) {
 
 function buildStt() {
   if (sttCfg.version === 'v2') {
-    return new deepgram.STTv2({
+    const opts = {
       model: sttCfg.model,
       sampleRate: sttCfg.sample_rate,
-      eagerEotThreshold: sttCfg.eager_eot_threshold,
       eotThreshold: sttCfg.eot_threshold,
       eotTimeoutMs: sttCfg.eot_timeout_ms,
-    });
+    };
+    if (sttCfg.eager_eot_threshold != null) {
+      opts.eagerEotThreshold = sttCfg.eager_eot_threshold;
+    }
+    return new deepgram.STTv2(opts);
   }
 
   return new deepgram.STT({
@@ -103,10 +106,9 @@ function buildTurnHandling() {
     },
 
     preemptiveGeneration: {
-      enabled: isFlux,
-      // Start TTS synthesis as soon as the first LLM sentence arrives — cuts
-      // perceived latency by 300-800 ms vs waiting for the full response.
-      preemptiveTts: isFlux,
+      // Disabled for tool-calling agents: eager/preemptive paths create multiple
+      // speech handles per utterance and can orphan in-flight tool results.
+      enabled: false,
     },
   };
 }
@@ -158,16 +160,13 @@ export default defineAgent({
   // when a user connects — zero cold-start delay on first session.
   prewarm: async (proc) => {
     proc.userData.vad = await silero.VAD.load({
-      // Trigger interruption after just 50 ms of detected speech — near-instant.
-      minSpeechDuration: 0.05,
-      // 150 ms of silence marks the end of the user's utterance for VAD.
-      // Flux v2's EOT signals will further refine this.
-      minSilenceDuration: 0.15,
-      // Capture 150 ms of audio before the VAD fires so we never miss the
-      // start of a word.
-      prefixPaddingDuration: 0.15,
-      // Standard sensitivity — detects real speech without firing on noise.
-      activationThreshold: 0.5,
+      // VAD is for interruption only — Flux STT handles end-of-turn.
+      // Higher threshold reduces false triggers from speaker echo while the
+      // agent is thinking or playing TTS.
+      minSpeechDuration: 0.12,
+      minSilenceDuration: 0.35,
+      prefixPaddingDuration: 0.12,
+      activationThreshold: 0.65,
     });
   },
 
@@ -206,6 +205,12 @@ export default defineAgent({
         sampleRate: ttsCfg.sample_rate,
       }),
       turnHandling: buildTurnHandling(),
+      connOptions: {
+        llmConnOptions: {
+          maxRetry: 1,
+          timeoutMs: 45000,
+        },
+      },
     });
 
     session.on(voice.AgentSessionEventTypes.Error, (ev) => {
@@ -220,6 +225,10 @@ export default defineAgent({
           action: 'tool_called',
           data: { name: call.name },
         });
+      }
+      for (const output of ev.functionOutputs ?? []) {
+        const preview = JSON.stringify(output.output ?? output).slice(0, 120);
+        console.log(`[session] tool output: ${preview}`);
       }
     });
 

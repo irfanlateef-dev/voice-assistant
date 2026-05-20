@@ -23,9 +23,8 @@
         "type": "deepgram",
         "version": "v2",
         "model": "flux-general-en",
-        "eager_eot_threshold": 0.35,
-        "eot_threshold": 0.55,
-        "eot_timeout_ms": 1500
+        "eot_threshold": 0.6,
+        "eot_timeout_ms": 2000
       }
     },
     "think": {
