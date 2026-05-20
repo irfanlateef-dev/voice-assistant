@@ -81,33 +81,26 @@ function buildTurnHandling() {
   const isFlux = sttCfg.version === 'v2';
 
   return {
-    // Flux v2 sends linguistically-aware end-of-utterance signals — let it
-    // decide when the user's turn is over (not raw silence timers).
     ...(isFlux ? { turnDetection: 'stt' } : {}),
 
     interruption: {
       enabled: true,
       minDuration: 0,
       minWords: 0,
-      // When the VAD fires during agent speech, stop immediately.
-      // If it turns out to be a false interruption (background noise / very
-      // short sound), automatically resume the agent's speech.
-      resumeFalseInterruption: true,
-      falseInterruptionTimeout: 1500,
-      mode: 'adaptive',
+      // resumeFalseInterruption: false — when the VAD fires the agent stops
+      // immediately and stays stopped. With it set to true + 1500ms timeout,
+      // the agent would pause, then RESUME if your speech was brief, and throw
+      // away what you said — causing the "forgets my question" symptom.
+      resumeFalseInterruption: false,
     },
 
     endpointing: {
-      // Dynamic mode learns the user's natural pause rhythm instead of using
-      // a fixed timeout — avoids cutting off slow speakers or waiting too long.
       mode: 'dynamic',
       minDelay: 0,
       maxDelay: isFlux ? 600 : 1500,
     },
 
     preemptiveGeneration: {
-      // Disabled for tool-calling agents: eager/preemptive paths create multiple
-      // speech handles per utterance and can orphan in-flight tool results.
       enabled: false,
     },
   };
@@ -200,10 +193,15 @@ export default defineAgent({
         sampleRate: ttsCfg.sample_rate,
       }),
       turnHandling: buildTurnHandling(),
-      // Default is 10s. After a tool call, openrouter/free can take 15–30s
-      // before streaming text to TTS — the default timeout kills audio output.
+      // Disable AEC warmup — the default 3000ms suppresses ALL interruptions
+      // for the first 3 seconds of agent speech, so short answers can never
+      // be interrupted. Setting to 0 means the VAD can fire from word one.
+      aecWarmupDuration: 0,
       ttsReadIdleTimeout: 90_000,
       forwardAudioIdleTimeout: 90_000,
+      // Filter markdown from LLM output before it reaches TTS — reasoning
+      // models sometimes emit internal annotations that must not be spoken.
+      ttsTextTransforms: ['filter_markdown'],
       connOptions: {
         llmConnOptions: {
           maxRetry: 1,
