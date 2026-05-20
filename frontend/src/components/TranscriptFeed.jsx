@@ -37,11 +37,12 @@ export default function TranscriptFeed({ transcript, greeting, isConnected }) {
 
         {transcript.map((msg, i) => (
           <div
-            key={`${msg.role}-${i}`}
-            className={`chat-bubble chat-bubble--${msg.role}`}
+            key={msg.id || `${msg.role}-${i}`}
+            className={`chat-bubble chat-bubble--${msg.role}${msg.interim ? ' chat-bubble--interim' : ''}`}
           >
             <span className="chat-bubble__label">
               {msg.role === 'user' ? 'You' : 'Assistant'}
+              {msg.interim ? ' · live' : ''}
             </span>
             <p>{msg.text}</p>
           </div>

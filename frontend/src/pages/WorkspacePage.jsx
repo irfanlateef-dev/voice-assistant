@@ -36,11 +36,16 @@ export default function WorkspacePage() {
     greeting,
   } = useVoiceAgent(getToken, { onAction: handleAction });
 
-  const latestAssistantMessage = useMemo(() => {
+  const { latestAssistantMessage, isAssistantLive } = useMemo(() => {
     for (let i = transcript.length - 1; i >= 0; i -= 1) {
-      if (transcript[i].role === 'assistant') return transcript[i].text;
+      if (transcript[i].role === 'assistant') {
+        return {
+          latestAssistantMessage: transcript[i].text,
+          isAssistantLive: Boolean(transcript[i].interim),
+        };
+      }
     }
-    return '';
+    return { latestAssistantMessage: '', isAssistantLive: false };
   }, [transcript]);
 
   const handleLogout = async () => {
@@ -81,6 +86,7 @@ export default function WorkspacePage() {
           isConnected={isConnected}
           greeting={greeting}
           latestAssistantMessage={latestAssistantMessage}
+          isAssistantLive={isAssistantLive}
         />
       </main>
 

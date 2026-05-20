@@ -203,17 +203,14 @@ export default defineAgent({
       }
     });
 
-    session.on(voice.AgentSessionEventTypes.ConversationItemAdded, (ev) => {
-      const { item } = ev;
-      if (item.role !== 'user' && item.role !== 'assistant') return;
-
-      const text = item.textContent?.trim();
-      if (!text) return;
-
-      publishData(ctx.room, { type: 'transcript', role: item.role, text });
+    await session.start({
+      agent,
+      room: ctx.room,
+      outputOptions: {
+        transcriptionEnabled: true,
+        syncTranscription: true,
+      },
     });
-
-    await session.start({ agent, room: ctx.room });
 
     session.say(greeting, { allowInterruptions: true });
   },

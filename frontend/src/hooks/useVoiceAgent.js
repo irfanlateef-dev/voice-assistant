@@ -29,6 +29,41 @@ function attachExistingRemoteAudio(room) {
   });
 }
 
+function applyTranscriptionSegments(prev, segments, role) {
+  if (!segments?.length) return prev;
+
+  const next = [...prev];
+  for (const segment of segments) {
+    const text = segment.text?.trim();
+    if (!text) continue;
+
+    const entry = {
+      id: segment.id,
+      role,
+      text,
+      interim: !segment.final,
+    };
+
+    const existingIdx = next.findIndex((msg) => msg.id === segment.id);
+    if (existingIdx >= 0) {
+      next[existingIdx] = entry;
+      continue;
+    }
+
+    if (!segment.final) {
+      const interimIdx = next.findLastIndex((msg) => msg.role === role && msg.interim);
+      if (interimIdx >= 0) {
+        next[interimIdx] = entry;
+        continue;
+      }
+    }
+
+    next.push(entry);
+  }
+
+  return next;
+}
+
 export function useVoiceAgent(getToken, { onAction } = {}) {
   const [greeting, setGreeting] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -120,6 +155,7 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
       isAgentSpeakingRef.current = false;
       isUserSpeakingRef.current = false;
       wasAgentSpeakingRef.current = false;
+      setTranscript([]);
     }
   }, [clearStallTimer]);
 
@@ -128,6 +164,7 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
 
     clearStallTimer();
     setIsConnecting(true);
+    setTranscript([]);
 
     try {
       const authToken = await getToken();
@@ -170,30 +207,33 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
         detachRemoteAudio(track);
       });
 
+      room.on(RoomEvent.TranscriptionReceived, (segments, participant) => {
+        const localIdentity = room.localParticipant?.identity;
+        const role = participant?.identity === localIdentity ? 'user' : 'assistant';
+
+        setTranscript((prev) => applyTranscriptionSegments(prev, segments, role));
+
+        for (const segment of segments) {
+          if (!segment.text?.trim()) continue;
+
+          if (role === 'user' && segment.final) {
+            isThinkingRef.current = true;
+            setIsThinking(true);
+          }
+
+          if (role === 'assistant') {
+            isThinkingRef.current = false;
+            setIsThinking(false);
+          }
+        }
+
+        clearStallTimer();
+      });
+
       room.on(RoomEvent.DataReceived, (payload) => {
         try {
           const text = new TextDecoder().decode(payload);
           const msg = JSON.parse(text);
-
-          if (msg.type === 'transcript' && msg.role && msg.text) {
-            setTranscript((prev) => [...prev, { role: msg.role, text: msg.text }]);
-            if (msg.role === 'user') {
-              isThinkingRef.current = true;
-              setIsThinking(true);
-            }
-            if (msg.role === 'assistant') {
-              isThinkingRef.current = false;
-              setIsThinking(false);
-            }
-            clearStallTimer();
-            return;
-          }
-
-          if (msg.role && msg.text) {
-            setTranscript((prev) => [...prev, { role: msg.role, text: msg.text }]);
-            clearStallTimer();
-            return;
-          }
 
           if (msg.type === 'action') {
             if (msg.action === 'tool_called') {

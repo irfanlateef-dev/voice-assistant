@@ -207,6 +207,25 @@ body {
   line-height: 1.5;
 }
 
+.chat-bubble--interim {
+  opacity: 0.82;
+  border-style: dashed;
+}
+
+.chat-bubble--interim p::after {
+  content: '▍';
+  display: inline-block;
+  margin-left: 0.15rem;
+  color: #94a3b8;
+  animation: transcript-cursor 1s step-end infinite;
+}
+
+@keyframes transcript-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+
 /* Data panels */
 .data-panel {
   padding: 0.9rem 1rem;
@@ -371,6 +390,19 @@ body {
   font-size: 0.95rem;
   line-height: 1.55;
   color: #e2e8f0;
+}
+
+.assistant-panel__response--live {
+  border-color: rgba(129, 140, 248, 0.35);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.08);
+}
+
+.assistant-panel__response--live .assistant-panel__response-text::after {
+  content: '▍';
+  display: inline-block;
+  margin-left: 0.15rem;
+  color: #818cf8;
+  animation: transcript-cursor 1s step-end infinite;
 }
 
 .assistant-panel__tips ul {
