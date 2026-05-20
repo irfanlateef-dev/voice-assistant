@@ -93,8 +93,8 @@ function buildTurnHandling() {
       // If it turns out to be a false interruption (background noise / very
       // short sound), automatically resume the agent's speech.
       resumeFalseInterruption: true,
-      falseInterruptionTimeout: 1500,
-      mode: 'adaptive',
+      falseInterruptionTimeout: 300,
+      mode: 'vad',
     },
 
     endpointing: {
@@ -200,6 +200,7 @@ export default defineAgent({
         sampleRate: ttsCfg.sample_rate,
       }),
       turnHandling: buildTurnHandling(),
+      aecWarmupDuration: 0,
       // Default is 10s. After a tool call, openrouter/free can take 15–30s
       // before streaming text to TTS — the default timeout kills audio output.
       ttsReadIdleTimeout: 90_000,
