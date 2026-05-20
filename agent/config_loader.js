@@ -12,18 +12,30 @@ export function loadConfig() {
   return cfg;
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 export function getSttSettings(cfg) {
   const listen = cfg.agent.listen.provider;
   const audioIn = cfg.audio.input;
+  const isFlux = (listen.version ?? 'v2') === 'v2';
+
+  // Deepgram Flux v2 rejects out-of-range params with HTTP 400 and closes the stream.
+  // Valid ranges: eot_threshold 0.5–0.9, eager_eot_threshold 0.3–0.9, eot_timeout_ms 500–10000
+  const eagerEot = listen.eager_eot_threshold ?? 0.5;
+  const eot = listen.eot_threshold ?? 0.6;
+  const eotTimeout = listen.eot_timeout_ms ?? 1500;
+
   return {
     model: listen.model,
     version: listen.version ?? 'v2',
     encoding: audioIn.encoding,
     sample_rate: audioIn.sample_rate,
     language: 'en',
-    eager_eot_threshold: listen.eager_eot_threshold ?? 0.5,
-    eot_threshold: listen.eot_threshold ?? 0.6,
-    eot_timeout_ms: listen.eot_timeout_ms ?? 1500,
+    eager_eot_threshold: isFlux ? clamp(eagerEot, 0.3, 0.9) : eagerEot,
+    eot_threshold: isFlux ? clamp(eot, 0.5, 0.9) : eot,
+    eot_timeout_ms: isFlux ? clamp(eotTimeout, 500, 10000) : eotTimeout,
   };
 }
 
