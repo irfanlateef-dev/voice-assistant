@@ -77,42 +77,6 @@ function buildStt() {
   });
 }
 
-function buildTurnHandling() {
-  const isFlux = sttCfg.version === 'v2';
-
-  return {
-    // Flux v2 sends linguistically-aware end-of-utterance signals — let it
-    // decide when the user's turn is over (not raw silence timers).
-    ...(isFlux ? { turnDetection: 'stt' } : {}),
-
-    interruption: {
-      enabled: true,
-      minDuration: 0,
-      minWords: 0,
-      // When the VAD fires during agent speech, stop immediately.
-      // If it turns out to be a false interruption (background noise / very
-      // short sound), automatically resume the agent's speech.
-      resumeFalseInterruption: true,
-      falseInterruptionTimeout: 300,
-      mode: 'vad',
-    },
-
-    endpointing: {
-      // Dynamic mode learns the user's natural pause rhythm instead of using
-      // a fixed timeout — avoids cutting off slow speakers or waiting too long.
-      mode: 'dynamic',
-      minDelay: 0,
-      maxDelay: isFlux ? 600 : 1500,
-    },
-
-    preemptiveGeneration: {
-      // Disabled for tool-calling agents: eager/preemptive paths create multiple
-      // speech handles per utterance and can orphan in-flight tool results.
-      enabled: false,
-    },
-  };
-}
-
 function buildLlm() {
   const { provider_type: provider, model } = llmCfg;
 
@@ -160,13 +124,10 @@ export default defineAgent({
   // when a user connects — zero cold-start delay on first session.
   prewarm: async (proc) => {
     proc.userData.vad = await silero.VAD.load({
-      // VAD is for interruption only — Flux STT handles end-of-turn.
-      // Higher threshold reduces false triggers from speaker echo while the
-      // agent is thinking or playing TTS.
-      minSpeechDuration: 0.12,
-      minSilenceDuration: 0.35,
-      prefixPaddingDuration: 0.12,
-      activationThreshold: 0.65,
+      minSpeechDuration: 0.05,
+      minSilenceDuration: 0.3,
+      prefixPaddingDuration: 0.1,
+      activationThreshold: 0.3,
     });
   },
 
@@ -199,12 +160,19 @@ export default defineAgent({
         encoding: ttsCfg.encoding,
         sampleRate: ttsCfg.sample_rate,
       }),
-      turnHandling: buildTurnHandling(),
-      aecWarmupDuration: 0,
-      // Default is 10s. After a tool call, openrouter/free can take 15–30s
-      // before streaming text to TTS — the default timeout kills audio output.
-      ttsReadIdleTimeout: 90_000,
-      forwardAudioIdleTimeout: 90_000,
+      voiceOptions: {
+        allowInterruptions: true,
+        minInterruptionDuration: 0,
+        minInterruptionWords: 0,
+        aecWarmupDuration: 0,
+        discardAudioIfUninterruptible: true,
+        preemptiveGeneration: false,
+        minEndpointingDelay: 0,
+        maxEndpointingDelay: 500,
+      },
+      turnHandling: {
+        turnDetection: 'stt',
+      },
       connOptions: {
         llmConnOptions: {
           maxRetry: 1,
