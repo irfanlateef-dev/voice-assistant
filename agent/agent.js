@@ -81,26 +81,33 @@ function buildTurnHandling() {
   const isFlux = sttCfg.version === 'v2';
 
   return {
+    // Flux v2 sends linguistically-aware end-of-utterance signals — let it
+    // decide when the user's turn is over (not raw silence timers).
     ...(isFlux ? { turnDetection: 'stt' } : {}),
 
     interruption: {
       enabled: true,
       minDuration: 0,
       minWords: 0,
-      // resumeFalseInterruption: false — when the VAD fires the agent stops
-      // immediately and stays stopped. With it set to true + 1500ms timeout,
-      // the agent would pause, then RESUME if your speech was brief, and throw
-      // away what you said — causing the "forgets my question" symptom.
-      resumeFalseInterruption: false,
+      // When the VAD fires during agent speech, stop immediately.
+      // If it turns out to be a false interruption (background noise / very
+      // short sound), automatically resume the agent's speech.
+      resumeFalseInterruption: true,
+      falseInterruptionTimeout: 1500,
+      mode: 'adaptive',
     },
 
     endpointing: {
+      // Dynamic mode learns the user's natural pause rhythm instead of using
+      // a fixed timeout — avoids cutting off slow speakers or waiting too long.
       mode: 'dynamic',
       minDelay: 0,
       maxDelay: isFlux ? 600 : 1500,
     },
 
     preemptiveGeneration: {
+      // Disabled for tool-calling agents: eager/preemptive paths create multiple
+      // speech handles per utterance and can orphan in-flight tool results.
       enabled: false,
     },
   };
@@ -153,13 +160,13 @@ export default defineAgent({
   // when a user connects — zero cold-start delay on first session.
   prewarm: async (proc) => {
     proc.userData.vad = await silero.VAD.load({
-      // Require 250ms of sustained speech before interruption fires.
-      // This prevents brief background noise or mic bleed from triggering.
-      minSpeechDuration: 0.25,
-      minSilenceDuration: 0.3,
-      prefixPaddingDuration: 0.1,
-      // 0.7 = clear speech required. Lower values fire on noise/echo.
-      activationThreshold: 0.7,
+      // VAD is for interruption only — Flux STT handles end-of-turn.
+      // Higher threshold reduces false triggers from speaker echo while the
+      // agent is thinking or playing TTS.
+      minSpeechDuration: 0.12,
+      minSilenceDuration: 0.35,
+      prefixPaddingDuration: 0.12,
+      activationThreshold: 0.65,
     });
   },
 
@@ -193,16 +200,10 @@ export default defineAgent({
         sampleRate: ttsCfg.sample_rate,
       }),
       turnHandling: buildTurnHandling(),
-      // 1000ms AEC warmup: blocks interruption for 1s after agent starts
-      // speaking, which is enough to stop TTS echo feeding back into the VAD.
-      // 3000ms (the default) was too long — short answers couldn't be
-      // interrupted at all. 0 caused a self-interrupt loop.
-      aecWarmupDuration: 1000,
+      // Default is 10s. After a tool call, openrouter/free can take 15–30s
+      // before streaming text to TTS — the default timeout kills audio output.
       ttsReadIdleTimeout: 90_000,
       forwardAudioIdleTimeout: 90_000,
-      // Filter markdown from LLM output before it reaches TTS — reasoning
-      // models sometimes emit internal annotations that must not be spoken.
-      ttsTextTransforms: ['filter_markdown'],
       connOptions: {
         llmConnOptions: {
           maxRetry: 1,
