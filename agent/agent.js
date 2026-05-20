@@ -191,11 +191,6 @@ export default defineAgent({
     });
 
     const session = new voice.AgentSession({
-      // The VAD gives the agent ears at the audio level — it detects the
-      // exact millisecond the user starts speaking and fires the interruption
-      // signal immediately, without waiting for a network round-trip to
-      // Deepgram. Without this, the agent can only know the user spoke AFTER
-      // the STT has already buffered and processed audio, which is too late.
       vad: ctx.proc.userData.vad,
       stt: buildStt(),
       llm: await buildLlm(),
@@ -205,10 +200,17 @@ export default defineAgent({
         sampleRate: ttsCfg.sample_rate,
       }),
       turnHandling: buildTurnHandling(),
+      // Default is 10s. After a tool call, openrouter/free can take 15–30s
+      // before streaming text to TTS — the default timeout kills audio output.
+      ttsReadIdleTimeout: 90_000,
+      forwardAudioIdleTimeout: 90_000,
       connOptions: {
         llmConnOptions: {
           maxRetry: 1,
-          timeoutMs: 45000,
+          timeoutMs: 60_000,
+        },
+        ttsConnOptions: {
+          timeoutMs: 60_000,
         },
       },
     });

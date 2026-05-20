@@ -15,6 +15,7 @@ export default function ControlBar({
     listening: 'Listening',
     speaking: 'Speaking',
     interrupted: 'Interrupted',
+    thinking: 'Thinking',
     stalled: 'Not responding',
   };
 

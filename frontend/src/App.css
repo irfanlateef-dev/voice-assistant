@@ -489,6 +489,11 @@ body {
   animation-duration: 2.2s;
 }
 
+.siri-orb--thinking .siri-orb__glow {
+  animation: siri-breathe 2s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.4), transparent 70%);
+}
+
 .siri-orb--interrupted .siri-orb__layer--1,
 .siri-orb--stalled .siri-orb__layer--1 {
   background: conic-gradient(from 0deg, #fbbf24, #f97316, #ef4444, #fbbf24);
@@ -761,6 +766,7 @@ body {
 .status-label--listening { color: #93c5fd; }
 .status-label--speaking { color: #d8b4fe; }
 .status-label--interrupted { color: #fcd34d; }
+.status-label--thinking { color: #c4b5fd; }
 .status-label--stalled { color: #fca5a5; }
 
 .control-btn--reconnect {

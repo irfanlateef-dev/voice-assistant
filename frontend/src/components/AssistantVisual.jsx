@@ -15,6 +15,10 @@ const STATUS_COPY = {
     title: 'Interrupted',
     hint: 'Go ahead — I am listening.',
   },
+  thinking: {
+    title: 'Working on it',
+    hint: 'Running your request — this can take a moment.',
+  },
   stalled: {
     title: 'Not responding',
     hint: 'Try reconnecting if I stay silent.',
@@ -22,7 +26,7 @@ const STATUS_COPY = {
 };
 
 export default function AssistantVisual({ status }) {
-  const isActive = status === 'speaking' || status === 'listening' || status === 'interrupted';
+  const isActive = status === 'speaking' || status === 'listening' || status === 'interrupted' || status === 'thinking';
 
   return (
     <div className={`siri-orb siri-orb--${status}`} aria-hidden="true">
@@ -40,6 +44,10 @@ export default function AssistantVisual({ status }) {
             <span key={i} className="siri-orb__wave" style={{ animationDelay: `${i * 0.12}s` }} />
           ))}
         </div>
+      )}
+
+      {status === 'thinking' && (
+        <div className="siri-orb__ripple siri-orb__ripple--1" />
       )}
 
       {status === 'listening' && (

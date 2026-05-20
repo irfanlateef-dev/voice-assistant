@@ -3,9 +3,10 @@ import { Room, RoomEvent, Track } from 'livekit-client';
 
 import { API_BASE } from '../config/api.js';
 
-// How long (ms) to wait for agent reply after user stops speaking before
-// marking the session as stalled.
-const STALL_TIMEOUT_MS = 8000;
+// After the user stops speaking, the agent may need time to run tools + LLM
+// before TTS starts — 8s was far too short and showed a false "Reconnect".
+const STALL_TIMEOUT_MS = 90_000;
+const THINKING_STALL_TIMEOUT_MS = 120_000;
 
 function attachRemoteAudio(track, participant) {
   if (track.kind !== Track.Kind.Audio || participant.isLocal) return;
@@ -37,6 +38,7 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [isInterrupted, setIsInterrupted] = useState(false);
   const [isStalled, setIsStalled] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
   const [inputSampleRate, setInputSampleRate] = useState(48000);
@@ -49,6 +51,17 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
   const isUserSpeakingRef = useRef(false);
   const interruptedTimerRef = useRef(null);
   const stallTimerRef = useRef(null);
+  const isThinkingRef = useRef(false);
+
+  const scheduleStallCheck = useCallback(() => {
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+    }
+    const delay = isThinkingRef.current ? THINKING_STALL_TIMEOUT_MS : STALL_TIMEOUT_MS;
+    stallTimerRef.current = setTimeout(() => {
+      setIsStalled(true);
+    }, delay);
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/config`)
@@ -102,6 +115,8 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
       setIsUserSpeaking(false);
       setIsInterrupted(false);
       setIsStalled(false);
+      setIsThinking(false);
+      isThinkingRef.current = false;
       isAgentSpeakingRef.current = false;
       isUserSpeakingRef.current = false;
       wasAgentSpeakingRef.current = false;
@@ -162,15 +177,30 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
 
           if (msg.type === 'transcript' && msg.role && msg.text) {
             setTranscript((prev) => [...prev, { role: msg.role, text: msg.text }]);
+            if (msg.role === 'user') {
+              isThinkingRef.current = true;
+              setIsThinking(true);
+            }
+            if (msg.role === 'assistant') {
+              isThinkingRef.current = false;
+              setIsThinking(false);
+            }
+            clearStallTimer();
             return;
           }
 
           if (msg.role && msg.text) {
             setTranscript((prev) => [...prev, { role: msg.role, text: msg.text }]);
+            clearStallTimer();
             return;
           }
 
           if (msg.type === 'action') {
+            if (msg.action === 'tool_called') {
+              isThinkingRef.current = true;
+              setIsThinking(true);
+              clearStallTimer();
+            }
             onActionRef.current?.(msg);
           }
         } catch {
@@ -195,13 +225,15 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
         wasAgentSpeakingRef.current = agentSpeaking;
 
         if (prevUserSpeaking && !userSpeaking && !agentSpeaking) {
-          stallTimerRef.current = setTimeout(() => {
-            setIsStalled(true);
-          }, STALL_TIMEOUT_MS);
+          scheduleStallCheck();
         }
 
         if ((agentSpeaking && !prevAgentSpeaking) || (userSpeaking && !prevUserSpeaking)) {
           clearStallTimer();
+          if (agentSpeaking) {
+            isThinkingRef.current = false;
+            setIsThinking(false);
+          }
         }
 
         setIsAgentSpeaking(agentSpeaking);
@@ -214,6 +246,8 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
         setIsAgentSpeaking(false);
         setIsUserSpeaking(false);
         setIsStalled(false);
+        setIsThinking(false);
+        isThinkingRef.current = false;
         isAgentSpeakingRef.current = false;
         isUserSpeakingRef.current = false;
         wasAgentSpeakingRef.current = false;
@@ -229,7 +263,7 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
     } finally {
       setIsConnecting(false);
     }
-  }, [getToken, flashInterrupted, inputSampleRate, clearStallTimer, isConnecting]);
+  }, [getToken, flashInterrupted, inputSampleRate, clearStallTimer, scheduleStallCheck, isConnecting]);
 
   // Disconnect then reconnect in one step — used by stall recovery UI
   const reconnect = useCallback(async () => {
@@ -262,7 +296,9 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
         ? 'interrupted'
         : isAgentSpeaking
           ? 'speaking'
-          : 'listening';
+          : isThinking
+            ? 'thinking'
+            : 'listening';
 
   return {
     connect,
@@ -275,6 +311,7 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
     isUserSpeaking,
     isInterrupted,
     isStalled,
+    isThinking,
     status,
     transcript,
     isMuted,
