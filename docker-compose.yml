@@ -10,6 +10,8 @@ services:
     env_file:
       - .env
     restart: "no"
+    networks:
+      - divescale-net
 
   web:
     build:
@@ -18,20 +20,23 @@ services:
       target: web
       args:
         VITE_LIVEKIT_URL: ${LIVEKIT_URL}
-    ports:
-      - "${PORT:-8000}:8000"
+    # Remove the ports mapping since nginx will handle routing
+    # ports:
+    #   - "${PORT:-8000}:8000"
     env_file:
       - .env
     environment:
       NODE_ENV: production
       SERVE_FRONTEND: "1"
       PORT: 8000
-      TRUST_PROXY: ${TRUST_PROXY:-0}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
+      TRUST_PROXY: "1"
+      CORS_ORIGINS: https://voice-assist.duckdns.org
     depends_on:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+    networks:
+      - divescale-net
 
   agent:
     build:
@@ -46,6 +51,8 @@ services:
       web:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - divescale-net
 
   seed:
     profiles: ["seed"]
@@ -60,3 +67,9 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: "no"
+    networks:
+      - divescale-net
+
+networks:
+  divescale-net:
+    external: true
