@@ -1,8 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { API_BASE } from '../config/api.js';
 
 export const AUTH_KEY = 'voice-agent-auth';
+
+function readStoredAuth() {
+  try {
+    const saved = localStorage.getItem(AUTH_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    // Corrupted entry — remove it so it doesn't block login
+    try { localStorage.removeItem(AUTH_KEY); } catch { /* ignore */ }
+    return null;
+  }
+}
 
 async function parseResponse(res) {
   const data = await res.json();
@@ -11,24 +22,14 @@ async function parseResponse(res) {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Synchronous lazy init — reads localStorage on the first render so token
+  // and user are available immediately (no async loading phase, no authReady
+  // flip-flop that delayed auto-connect on every navigation).
+  const [user, setUser] = useState(() => readStoredAuth()?.user ?? null);
+  const [token, setToken] = useState(() => readStoredAuth()?.token ?? null);
+  // isLoading is only true during explicit login/signup API calls now.
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    const saved = localStorage.getItem(AUTH_KEY);
-    if (!saved) { setIsLoading(false); return; }
-    try {
-      const parsed = JSON.parse(saved);
-      setUser(parsed.user);
-      setToken(parsed.token);
-    } catch {
-      localStorage.removeItem(AUTH_KEY);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   const persist = useCallback((data) => {
     localStorage.setItem(AUTH_KEY, JSON.stringify(data));

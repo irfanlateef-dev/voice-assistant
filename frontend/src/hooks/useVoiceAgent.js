@@ -278,8 +278,19 @@ export function useVoiceAgent(
         throw new Error('Failed to get auth token. Please sign in again.');
       }
 
+      // Use a unique room name per connection attempt so LiveKit always creates
+      // a fresh room and dispatches a new agent worker. Reusing a shared room
+      // name (e.g. "main") means the room persists on LiveKit Cloud after
+      // disconnect, and the agent is never re-dispatched for subsequent sessions.
+      const roomId = `cook-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+      console.log(
+        `[connect] gen=${generation} room=${roomId}` +
+          (sessionIdRef.current ? ` sessionId=${sessionIdRef.current}` : ''),
+      );
+
       const tokenRes = await fetch(
-        `${API_BASE}/api/token?room=main${
+        `${API_BASE}/api/token?room=${encodeURIComponent(roomId)}${
           sessionIdRef.current
             ? `&sessionId=${encodeURIComponent(sessionIdRef.current)}`
             : ''
@@ -442,10 +453,11 @@ export function useVoiceAgent(
       syncAgentReady();
       setIsConnected(true);
       setIsMuted(false);
+      console.log(`[connect] gen=${generation} connected — waiting for agent`);
     } catch (err) {
       if (generation !== connectGenerationRef.current) return;
 
-      console.error('LiveKit connect failed:', err);
+      console.error('[connect] failed:', err.message);
       setConnectError(err.message || 'Failed to connect');
       setIsConnected(false);
       setIsAgentReady(false);
@@ -460,8 +472,10 @@ export function useVoiceAgent(
         roomRef.current = null;
       }
     } finally {
+      // Always unblock the connecting ref so future auto-connect attempts
+      // aren't permanently blocked if this attempt was superseded.
+      connectingRef.current = false;
       if (generation === connectGenerationRef.current) {
-        connectingRef.current = false;
         setIsConnecting(false);
       }
     }
