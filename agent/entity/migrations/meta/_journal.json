@@ -15,6 +15,13 @@
       "when": 1779196000000,
       "tag": "0001_add_user_password",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779347955687,
+      "tag": "0002_robust_cardiac",
+      "breakpoints": true
     }
   ]
 }

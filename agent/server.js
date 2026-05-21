@@ -13,6 +13,10 @@ import { authMiddleware } from './middleware/auth.js';
 import * as noteService from './services/noteService.js';
 import * as taskService from './services/taskService.js';
 import { authenticateUser, createUser, toPublicUser } from './services/userService.js';
+import * as cookingSessionService from './services/cookingSessionService.js';
+import * as cookingIngredientService from './services/cookingIngredientService.js';
+import * as cookingStepService from './services/cookingStepService.js';
+import * as cookingNoteService from './services/cookingNoteService.js';
 
 dotenv.config();
 
@@ -107,7 +111,7 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 // ── LiveKit token ─────────────────────────────────────────────────────────────
 
 app.get('/api/token', authMiddleware, async (req, res) => {
-  const { room } = req.query;
+  const { room, sessionId } = req.query;
   const user = req.user;
 
   if (!room) {
@@ -122,7 +126,11 @@ app.get('/api/token', authMiddleware, async (req, res) => {
       identity: user.id,
       name: user.name || user.email,
       ttl: 3600,
-      metadata: JSON.stringify({ email: user.email, name: user.name }),
+      metadata: JSON.stringify({
+        email: user.email,
+        name: user.name,
+        cookingSessionId: sessionId ? String(sessionId) : null,
+      }),
     },
   );
   token.addGrant({ roomJoin: true, room: String(room), canPublish: true, canSubscribe: true });
@@ -191,6 +199,145 @@ app.post('/api/notes', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Create note failed:', err);
     res.status(500).json({ error: 'Failed to create note' });
+  }
+});
+
+// ── Cooking ───────────────────────────────────────────────────────────────────
+
+app.get('/api/cooking/sessions', authMiddleware, async (req, res) => {
+  try {
+    const sessions = await cookingSessionService.listIncompleteSessions(req.user.id);
+    res.json({ sessions });
+  } catch (err) {
+    console.error('List cooking sessions failed:', err);
+    res.status(500).json({ error: 'Failed to list sessions' });
+  }
+});
+
+app.get('/api/cooking/session/active', authMiddleware, async (req, res) => {
+  try {
+    const session = await cookingSessionService.getActiveSession(
+      req.user.id,
+      req.query.sessionId || null,
+    );
+    res.json({ session: session ?? null });
+  } catch (err) {
+    console.error('Get active session failed:', err);
+    res.status(500).json({ error: 'Failed to get active session' });
+  }
+});
+
+app.get('/api/cooking/session/:id', authMiddleware, async (req, res) => {
+  try {
+    const session = await cookingSessionService.getSessionById(req.params.id, req.user.id);
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+    res.json({ session });
+  } catch (err) {
+    console.error('Get session failed:', err);
+    res.status(500).json({ error: 'Failed to get session' });
+  }
+});
+
+app.delete('/api/cooking/session/:id', authMiddleware, async (req, res) => {
+  try {
+    const result = await cookingSessionService.deleteSession(req.params.id, req.user.id);
+    if (result.error) {
+      res.status(404).json({ error: result.error });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete session failed:', err);
+    res.status(500).json({ error: 'Failed to delete session' });
+  }
+});
+
+app.post('/api/cooking/session', authMiddleware, async (req, res) => {
+  const { dishName } = req.body ?? {};
+  if (!dishName?.trim()) {
+    res.status(400).json({ error: 'dishName is required' });
+    return;
+  }
+  try {
+    const session = await cookingSessionService.createSession(req.user.id, dishName.trim());
+    res.status(201).json({ session });
+  } catch (err) {
+    console.error('Create cooking session failed:', err);
+    res.status(500).json({ error: 'Failed to create session' });
+  }
+});
+
+app.patch('/api/cooking/session/:id/preferences', authMiddleware, async (req, res) => {
+  const { preferences } = req.body ?? {};
+  try {
+    const session = await cookingSessionService.updateSessionPreferences(req.params.id, req.user.id, preferences);
+    res.json({ session });
+  } catch (err) {
+    console.error('Update preferences failed:', err);
+    res.status(500).json({ error: 'Failed to update preferences' });
+  }
+});
+
+app.patch('/api/cooking/session/:id/confirm', authMiddleware, async (req, res) => {
+  try {
+    const session = await cookingSessionService.confirmSession(req.params.id, req.user.id);
+    res.json({ session });
+  } catch (err) {
+    console.error('Confirm session failed:', err);
+    res.status(500).json({ error: 'Failed to confirm session' });
+  }
+});
+
+app.patch('/api/cooking/session/:id/start', authMiddleware, async (req, res) => {
+  try {
+    const session = await cookingSessionService.startCooking(req.params.id, req.user.id);
+    res.json({ session });
+  } catch (err) {
+    console.error('Start cooking failed:', err);
+    res.status(500).json({ error: 'Failed to start cooking' });
+  }
+});
+
+app.patch('/api/cooking/session/:id/complete', authMiddleware, async (req, res) => {
+  try {
+    const session = await cookingSessionService.completeSession(req.params.id, req.user.id);
+    res.json({ session });
+  } catch (err) {
+    console.error('Complete session failed:', err);
+    res.status(500).json({ error: 'Failed to complete session' });
+  }
+});
+
+app.get('/api/cooking/session/:id/ingredients', authMiddleware, async (req, res) => {
+  try {
+    const ingredients = await cookingIngredientService.getIngredients(req.params.id);
+    res.json({ ingredients });
+  } catch (err) {
+    console.error('Get ingredients failed:', err);
+    res.status(500).json({ error: 'Failed to get ingredients' });
+  }
+});
+
+app.get('/api/cooking/session/:id/steps', authMiddleware, async (req, res) => {
+  try {
+    const steps = await cookingStepService.getSteps(req.params.id);
+    res.json({ steps });
+  } catch (err) {
+    console.error('Get steps failed:', err);
+    res.status(500).json({ error: 'Failed to get steps' });
+  }
+});
+
+app.get('/api/cooking/session/:id/notes', authMiddleware, async (req, res) => {
+  try {
+    const notes = await cookingNoteService.getNotes(req.params.id);
+    res.json({ notes });
+  } catch (err) {
+    console.error('Get cooking notes failed:', err);
+    res.status(500).json({ error: 'Failed to get notes' });
   }
 });
 
