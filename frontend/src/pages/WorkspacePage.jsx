@@ -87,12 +87,6 @@ export default function WorkspacePage() {
     authReady,
   });
 
-  useEffect(() => {
-    return () => {
-      fullReset().catch(() => {});
-    };
-  }, [fullReset]);
-
   const { latestAssistantMessage, isAssistantLive } = useMemo(() => {
     for (let i = transcript.length - 1; i >= 0; i -= 1) {
       if (transcript[i].role === 'assistant') {
