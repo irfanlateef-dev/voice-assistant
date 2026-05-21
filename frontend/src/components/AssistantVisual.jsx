@@ -1,7 +1,11 @@
 const STATUS_COPY = {
   idle: {
-    title: 'Ready to assist',
-    hint: 'Connect and ask me to manage your tasks or notes.',
+    title: 'Ready to cook',
+    hint: 'Connect and Grace will guide you step by step.',
+  },
+  connecting: {
+    title: 'Connecting to Grace',
+    hint: 'Setting up your voice session…',
   },
   listening: {
     title: 'Listening',

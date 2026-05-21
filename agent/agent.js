@@ -17,11 +17,15 @@ import {
   getTtsSettings,
   loadConfig,
 } from './config_loader.js';
-import { resolveUserId } from './lib/room.js';
+import { resolveParticipantContext } from './lib/room.js';
 import { formatDateContext } from './lib/parseDueDate.js';
+import { buildResumeContext, buildResumeGreeting } from './lib/resumeContext.js';
+
 import { getUserById } from './services/userService.js';
-import { buildNoteTools } from './tools/notes.js';
-import { buildTaskTools } from './tools/tasks.js';
+import { getSessionById } from './services/cookingSessionService.js';
+import { buildCookingTools } from './tools/cooking.js';
+import { GRACE_SYSTEM_PROMPT } from './prompts/grace.js';
+import { clearAllTimers } from './lib/cookingTimers.js';
 
 dotenv.config();
 
@@ -31,29 +35,18 @@ const ttsCfg = getTtsSettings(cfg);
 const llmCfg = getLlmSettings(cfg);
 const greeting = getGreeting(cfg);
 
-const ASSISTANT_PROMPT = `You are a personal task and notes assistant. You help users create tasks, list pending work, mark tasks done, save notes, and search notes.
+// config.json agent.think.prompt overrides; otherwise prompts/grace.js
+const systemPrompt = llmCfg.system_prompt?.trim() || GRACE_SYSTEM_PROMPT;
 
-Rules:
-- Keep spoken replies to 1-2 short sentences (under 120 characters, max 300).
-- No markdown. Responses are spoken aloud.
-- Use tools whenever the user wants to create, list, complete, delete, or search tasks or notes.
-- Confirm what you did after every tool action.
-- Ask for clarification if the request is ambiguous.
-- Ask for verbal confirmation before deleting or cancelling a task.
-- If the user message is empty, reply with an empty message.
-- For task due dates, pass due_at as a relative phrase (today, tomorrow, next_friday, in_2_days). Never guess ISO timestamps.
-- You only have access to the current logged-in user's tasks and notes. Never reference or modify another user's data.`;
-
-function buildAssistantPrompt(customPrompt, userContext = '') {
-  const base = customPrompt?.trim() || ASSISTANT_PROMPT;
-  const parts = [base, `Current date and time: ${formatDateContext()}.`];
+function buildAssistantPrompt(userContext = '') {
+  const parts = [systemPrompt, `Current date and time: ${formatDateContext()}.`];
   if (userContext) parts.push(userContext);
   return parts.join('\n\n');
 }
 
 function buildUserContext(user, userId) {
   const label = user?.name || user?.email || 'the user';
-  return `Current session user: ${label} (id: ${userId}). All task and note tools are scoped to this user only.`;
+  return `Current session user: ${label} (id: ${userId}). All cooking tools are scoped to this user only.`;
 }
 
 function buildStt() {
@@ -134,20 +127,41 @@ export default defineAgent({
   entry: async (ctx) => {
     await ctx.connect();
 
-    const userId = await resolveUserId(ctx.room);
+    const { userId, cookingSessionId } = await resolveParticipantContext(ctx.room);
     const user = await getUserById(userId);
-    console.log(`[session] user connected: ${userId} (${user?.email ?? 'unknown'})`);
+    console.log(
+      `[session] user connected: ${userId} (${user?.email ?? 'unknown'})` +
+        (cookingSessionId ? ` resume=${cookingSessionId}` : ' new session'),
+    );
+
+    let resumeContext = '';
+    let openingGreeting = greeting;
+
+    if (cookingSessionId) {
+      const cookingSession = await getSessionById(cookingSessionId, userId);
+      if (
+        cookingSession &&
+        ['gathering_prefs', 'confirmed', 'cooking'].includes(cookingSession.status)
+      ) {
+        resumeContext = buildResumeContext(cookingSession);
+        openingGreeting = buildResumeGreeting(cookingSession);
+        console.log(`[session] resuming "${cookingSession.dishName}" at step ${cookingSession.currentStep}`);
+      }
+    }
+
+    // Tools are constructed BEFORE the AgentSession exists, but background
+    // step timers need to invoke session.generateReply() when they fire. We
+    // pass a mutable holder and wire the live session into it once created.
+    const sessionHolder = { session: null };
 
     const tools = {
-      ...buildTaskTools(userId, ctx.room),
-      ...buildNoteTools(userId, ctx.room),
+      ...buildCookingTools(userId, ctx.room, sessionHolder),
     };
 
+    const userContext = [buildUserContext(user, userId), resumeContext].filter(Boolean).join('\n\n');
+
     const agent = new voice.Agent({
-      instructions: buildAssistantPrompt(
-        llmCfg.system_prompt,
-        buildUserContext(user, userId),
-      ),
+      instructions: buildAssistantPrompt(userContext),
       tools,
     });
 
@@ -184,8 +198,16 @@ export default defineAgent({
       },
     });
 
+    sessionHolder.session = session;
+
     session.on(voice.AgentSessionEventTypes.Error, (ev) => {
       console.error('[session] error:', ev.error);
+    });
+
+    session.on(voice.AgentSessionEventTypes.Close, () => {
+      console.log('[session] closed — clearing cooking timers');
+      clearAllTimers();
+      sessionHolder.session = null;
     });
 
     session.on(voice.AgentSessionEventTypes.FunctionToolsExecuted, (ev) => {
@@ -212,7 +234,7 @@ export default defineAgent({
       },
     });
 
-    session.say(greeting, { allowInterruptions: true });
+    session.say(openingGreeting, { allowInterruptions: true });
   },
 });
 

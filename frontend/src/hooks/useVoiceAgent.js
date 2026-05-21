@@ -3,8 +3,6 @@ import { Room, RoomEvent, Track } from 'livekit-client';
 
 import { API_BASE } from '../config/api.js';
 
-// After the user stops speaking, the agent may need time to run tools + LLM
-// before TTS starts — 8s was far too short and showed a false "Reconnect".
 const STALL_TIMEOUT_MS = 90_000;
 const THINKING_STALL_TIMEOUT_MS = 120_000;
 
@@ -64,9 +62,40 @@ function applyTranscriptionSegments(prev, segments, role) {
   return next;
 }
 
-export function useVoiceAgent(getToken, { onAction } = {}) {
+async function releaseLocalMedia(room) {
+  if (!room?.localParticipant) return;
+
+  try {
+    await room.localParticipant.setMicrophoneEnabled(false);
+  } catch {
+    // ignore — track may already be stopped
+  }
+
+  for (const publication of room.localParticipant.trackPublications.values()) {
+    if (publication.track) {
+      publication.track.stop();
+    }
+  }
+}
+
+function hasAgentParticipant(room) {
+  if (!room) return false;
+  const localIdentity = room.localParticipant?.identity;
+  for (const participant of room.remoteParticipants.values()) {
+    if (participant.identity !== localIdentity) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function useVoiceAgent(
+  getToken,
+  { onAction, sessionId, autoConnect = false, authReady = true } = {},
+) {
   const [greeting, setGreeting] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const [isAgentReady, setIsAgentReady] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
@@ -77,10 +106,17 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
   const [transcript, setTranscript] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
   const [inputSampleRate, setInputSampleRate] = useState(48000);
+  const [connectError, setConnectError] = useState('');
 
   const onActionRef = useRef(onAction);
   onActionRef.current = onAction;
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
   const roomRef = useRef(null);
+  const connectingRef = useRef(false);
+  const connectGenerationRef = useRef(0);
+  const allowAutoConnectRef = useRef(autoConnect);
+  const autoConnectStartedRef = useRef(false);
   const wasAgentSpeakingRef = useRef(false);
   const isAgentSpeakingRef = useRef(false);
   const isUserSpeakingRef = useRef(false);
@@ -127,9 +163,16 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
     }, 800);
   }, []);
 
-  const disconnect = useCallback(async () => {
+  const disconnect = useCallback(async ({ intentional = true } = {}) => {
+    if (intentional) {
+      allowAutoConnectRef.current = false;
+    }
+
+    connectGenerationRef.current += 1;
     clearStallTimer();
     setIsDisconnecting(true);
+    setConnectError('');
+
     try {
       const room = roomRef.current;
       if (room) {
@@ -140,12 +183,17 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
             }
           });
         });
+
+        await releaseLocalMedia(room);
         await room.disconnect();
         roomRef.current = null;
       }
     } finally {
+      connectingRef.current = false;
       setIsDisconnecting(false);
       setIsConnected(false);
+      setIsAgentReady(false);
+      setIsConnecting(false);
       setIsAgentSpeaking(false);
       setIsUserSpeaking(false);
       setIsInterrupted(false);
@@ -156,29 +204,47 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
       isUserSpeakingRef.current = false;
       wasAgentSpeakingRef.current = false;
       setTranscript([]);
+      setIsMuted(false);
     }
   }, [clearStallTimer]);
 
   const connect = useCallback(async () => {
-    if (roomRef.current || isConnecting || !getToken) return;
+    if (roomRef.current || connectingRef.current || !getToken) return;
 
+    const generation = ++connectGenerationRef.current;
+    connectingRef.current = true;
     clearStallTimer();
     setIsConnecting(true);
+    setIsAgentReady(false);
+    setConnectError('');
     setTranscript([]);
+
+    let room;
 
     try {
       const authToken = await getToken();
+      if (generation !== connectGenerationRef.current) return;
+
       if (!authToken) {
         throw new Error('Failed to get auth token. Please sign in again.');
       }
 
-      const tokenRes = await fetch(`${API_BASE}/api/token?room=main`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const tokenRes = await fetch(
+        `${API_BASE}/api/token?room=main${
+          sessionIdRef.current
+            ? `&sessionId=${encodeURIComponent(sessionIdRef.current)}`
+            : ''
+        }`,
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
 
       if (!tokenRes.ok) {
         throw new Error('Failed to get LiveKit token. Please sign in again.');
       }
+
+      if (generation !== connectGenerationRef.current) return;
 
       const { token } = await tokenRes.json();
       const livekitUrl = import.meta.env.VITE_LIVEKIT_URL;
@@ -187,7 +253,7 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
         throw new Error('LiveKit URL not configured. Set VITE_LIVEKIT_URL in frontend .env.');
       }
 
-      const room = new Room({
+      room = new Room({
         audioCaptureDefaults: {
           sampleRate: inputSampleRate,
           echoCancellation: true,
@@ -195,12 +261,26 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
           autoGainControl: true,
         },
         adaptiveStream: true,
-        disconnectOnPageLeave: false,
+        disconnectOnPageLeave: true,
       });
       roomRef.current = room;
 
+      const syncAgentReady = () => {
+        if (generation !== connectGenerationRef.current) return;
+        setIsAgentReady(hasAgentParticipant(room));
+      };
+
+      room.on(RoomEvent.ParticipantConnected, () => {
+        syncAgentReady();
+      });
+
+      room.on(RoomEvent.ParticipantDisconnected, () => {
+        syncAgentReady();
+      });
+
       room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
         attachRemoteAudio(track, participant);
+        syncAgentReady();
       });
 
       room.on(RoomEvent.TrackUnsubscribed, (track) => {
@@ -282,7 +362,10 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
 
       room.on(RoomEvent.Disconnected, () => {
         clearStallTimer();
+        connectingRef.current = false;
         setIsConnected(false);
+        setIsAgentReady(false);
+        setIsConnecting(false);
         setIsAgentSpeaking(false);
         setIsUserSpeaking(false);
         setIsStalled(false);
@@ -295,19 +378,56 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
       });
 
       await room.connect(livekitUrl, token);
+      if (generation !== connectGenerationRef.current) {
+        await releaseLocalMedia(room);
+        await room.disconnect();
+        roomRef.current = null;
+        return;
+      }
+
       await room.startAudio();
       attachExistingRemoteAudio(room);
       await room.localParticipant.setMicrophoneEnabled(true);
+      syncAgentReady();
       setIsConnected(true);
       setIsMuted(false);
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [getToken, flashInterrupted, inputSampleRate, clearStallTimer, scheduleStallCheck, isConnecting]);
+    } catch (err) {
+      if (generation !== connectGenerationRef.current) return;
 
-  // Disconnect then reconnect in one step — used by stall recovery UI
+      console.error('LiveKit connect failed:', err);
+      setConnectError(err.message || 'Failed to connect');
+      setIsConnected(false);
+      setIsAgentReady(false);
+
+      if (room) {
+        try {
+          await releaseLocalMedia(room);
+          await room.disconnect();
+        } catch {
+          // ignore cleanup errors
+        }
+        roomRef.current = null;
+      }
+    } finally {
+      if (generation === connectGenerationRef.current) {
+        connectingRef.current = false;
+        setIsConnecting(false);
+      }
+    }
+  }, [getToken, flashInterrupted, inputSampleRate, clearStallTimer, scheduleStallCheck]);
+
+  // Auto-connect once when auth is ready — never after manual disconnect.
+  useEffect(() => {
+    if (!autoConnect || !authReady || !getToken) return;
+    if (autoConnectStartedRef.current || !allowAutoConnectRef.current) return;
+
+    autoConnectStartedRef.current = true;
+    connect();
+  }, [autoConnect, authReady, getToken, connect]);
+
   const reconnect = useCallback(async () => {
-    await disconnect();
+    allowAutoConnectRef.current = true;
+    await disconnect({ intentional: false });
     await connect();
   }, [disconnect, connect]);
 
@@ -322,14 +442,26 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
 
   useEffect(() => {
     return () => {
+      connectGenerationRef.current += 1;
       if (interruptedTimerRef.current) clearTimeout(interruptedTimerRef.current);
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
-      disconnect();
+
+      const room = roomRef.current;
+      if (room) {
+        releaseLocalMedia(room).finally(() => {
+          room.disconnect();
+        });
+        roomRef.current = null;
+      }
     };
-  }, [disconnect]);
+  }, []);
 
   const status = !isConnected
-    ? 'idle'
+    ? isConnecting
+      ? 'connecting'
+      : 'idle'
+    : !isAgentReady
+      ? 'connecting'
     : isStalled
       ? 'stalled'
       : isInterrupted
@@ -345,6 +477,7 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
     disconnect,
     reconnect,
     isConnected,
+    isAgentReady,
     isConnecting,
     isDisconnecting,
     isAgentSpeaking,
@@ -357,5 +490,6 @@ export function useVoiceAgent(getToken, { onAction } = {}) {
     isMuted,
     toggleMute,
     greeting,
+    connectError,
   };
 }

@@ -1,17 +1,38 @@
 import { RoomEvent } from '@livekit/rtc-node';
 
-export function resolveUserId(room, timeoutMs = 30000) {
-  return new Promise((resolve, reject) => {
-    const findUser = () => {
-      for (const participant of room.remoteParticipants.values()) {
-        if (participant.identity) {
-          return participant.identity;
-        }
-      }
-      return null;
-    };
+function parseParticipantContext(participant) {
+  if (!participant?.identity) return null;
 
-    const existing = findUser();
+  let metadata = {};
+  if (participant.metadata) {
+    try {
+      metadata = JSON.parse(participant.metadata);
+    } catch {
+      metadata = {};
+    }
+  }
+
+  return {
+    userId: participant.identity,
+    cookingSessionId: metadata.cookingSessionId || null,
+  };
+}
+
+function findParticipantContext(room) {
+  for (const participant of room.remoteParticipants.values()) {
+    const context = parseParticipantContext(participant);
+    if (context) return context;
+  }
+  return null;
+}
+
+export function resolveUserId(room, timeoutMs = 30000) {
+  return resolveParticipantContext(room, timeoutMs).then((ctx) => ctx.userId);
+}
+
+export function resolveParticipantContext(room, timeoutMs = 30000) {
+  return new Promise((resolve, reject) => {
+    const existing = findParticipantContext(room);
     if (existing) {
       resolve(existing);
       return;
@@ -23,10 +44,11 @@ export function resolveUserId(room, timeoutMs = 30000) {
     }, timeoutMs);
 
     const onConnected = (participant) => {
-      if (participant.identity) {
+      const context = parseParticipantContext(participant);
+      if (context) {
         clearTimeout(timeout);
         room.off(RoomEvent.ParticipantConnected, onConnected);
-        resolve(participant.identity);
+        resolve(context);
       }
     };
 

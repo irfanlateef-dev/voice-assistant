@@ -11,7 +11,8 @@ export default function ControlBar({
   onToggleMute,
 }) {
   const statusLabels = {
-    idle: 'Idle',
+    idle: 'Ready',
+    connecting: 'Connecting to Grace…',
     listening: 'Listening',
     speaking: 'Speaking',
     interrupted: 'Interrupted',
@@ -23,15 +24,15 @@ export default function ControlBar({
 
   let buttonLabel;
   if (isConnecting) buttonLabel = 'Connecting…';
-  else if (isDisconnecting) buttonLabel = 'Disconnecting…';
-  else if (isConnected) buttonLabel = 'Disconnect';
-  else buttonLabel = 'Connect';
+  else if (isDisconnecting) buttonLabel = 'Ending…';
+  else if (isConnected) buttonLabel = 'End session';
+  else buttonLabel = 'Connect to Grace';
 
   return (
     <div className="control-bar">
       <button
         type="button"
-        className={`control-btn control-btn--primary ${isConnected || isDisconnecting ? 'connected' : ''}`}
+        className={`control-btn control-btn--primary ${isConnected && !isDisconnecting ? 'connected' : ''}`}
         onClick={isConnected ? onDisconnect : onConnect}
         disabled={isBusy}
       >

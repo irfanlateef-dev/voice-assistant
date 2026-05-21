@@ -1,42 +1,42 @@
-import { Mic, FileText, CheckSquare, BookOpen, Shield, Zap } from 'lucide-react';
+import { Sliders, Hand, MessageCircle, ListChecks, BookMarked, Globe } from 'lucide-react';
 import { useReveal } from '../../hooks/useReveal.js';
 
 const FEATURES = [
   {
-    icon: Mic,
-    title: 'Barge-in support',
-    desc: 'Interrupt the agent mid-sentence. It stops immediately and listens to your next request without missing a beat.',
-    color: '#6366f1',
-  },
-  {
-    icon: FileText,
-    title: 'Real-time transcription',
-    desc: 'Every word appears on screen as you speak. The live transcript keeps you in the loop even while the agent is replying.',
-    color: '#a855f7',
-  },
-  {
-    icon: CheckSquare,
-    title: 'Task management',
-    desc: 'Create, list, complete, and delete tasks entirely by voice. The agent confirms each action and updates your list instantly.',
-    color: '#22d3ee',
-  },
-  {
-    icon: BookOpen,
-    title: 'Note capture',
-    desc: "Save ideas hands-free while you're driving, cooking, or on a call. Search them by keyword later without opening an app.",
+    icon: Sliders,
+    title: 'Personalised recipes',
+    desc: 'Asks only what matters for the dish you chose — servings, swaps, style — before you touch a pan. Grace remembers what you said.',
     color: '#f59e0b',
   },
   {
-    icon: Shield,
-    title: 'Private & scoped',
-    desc: 'JWT auth keeps data scoped per user. Your tasks and notes are yours — nothing bleeds between accounts.',
-    color: '#10b981',
+    icon: Hand,
+    title: 'Hands-free checklist',
+    desc: 'Say "I added the garlic" and it\'s marked done. No touching your phone with messy hands. Ever.',
+    color: '#ea580c',
   },
   {
-    icon: Zap,
-    title: 'Sub-second latency',
-    desc: "The Deepgram Flux v2 + Aura TTS pipeline is tuned end-to-end for speed. The agent replies before you've fully exhaled.",
-    color: '#ec4899',
+    icon: MessageCircle,
+    title: 'Smart wait time fill',
+    desc: 'Grace detects when you\'re waiting and starts a real conversation. Not a timer. An actual chat.',
+    color: '#fbbf24',
+  },
+  {
+    icon: ListChecks,
+    title: 'Progress tracking',
+    desc: 'Live ingredient checklist and step tracker update in real time as you cook. Always know exactly where you are.',
+    color: '#f97316',
+  },
+  {
+    icon: BookMarked,
+    title: 'Recipe memory',
+    desc: 'Preferences and notes saved per session so you can review what you made and how you made it.',
+    color: '#fb923c',
+  },
+  {
+    icon: Globe,
+    title: 'Works on any device',
+    desc: 'Open in any browser. No app install needed. Start cooking in 10 seconds from any device.',
+    color: '#fcd34d',
   },
 ];
 
@@ -45,18 +45,18 @@ export default function Features() {
   const gridRef   = useReveal();
 
   return (
-    <section id="features" className="py-28">
+    <section id="features" className="py-28 bg-stone-50">
       <div className="max-w-7xl mx-auto px-6">
 
         <div ref={headerRef} className="reveal text-center mb-16">
-          <p className="text-indigo-400 text-sm font-semibold uppercase tracking-widest mb-3">
+          <p className="text-amber-600 text-sm font-semibold uppercase tracking-widest mb-3">
             Capabilities
           </p>
-          <h2 className="text-4xl md:text-[2.75rem] font-bold text-white leading-tight mb-4">
+          <h2 className="text-4xl md:text-[2.75rem] font-bold text-stone-900 leading-tight mb-4">
             Everything you need. Nothing you don't.
           </h2>
-          <p className="text-[#94a3b8] text-lg max-w-xl mx-auto">
-            Built for speed. Designed to stay out of your way.
+          <p className="text-stone-600 text-lg max-w-xl mx-auto">
+            Built to keep your hands free and your food on point.
           </p>
         </div>
 
@@ -70,8 +70,8 @@ export default function Features() {
               <article
                 key={feat.title}
                 className="reveal-item glass-card p-6 flex flex-col gap-4 cursor-default
-                  hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10
-                  hover:scale-[1.02] transition-all duration-200 ease-out"
+                  hover:border-amber-300 hover:shadow-md
+                  hover:scale-[1.01] transition-all duration-200 ease-out"
               >
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -79,8 +79,8 @@ export default function Features() {
                 >
                   <Icon size={18} style={{ color: feat.color }} strokeWidth={2} />
                 </div>
-                <h3 className="text-base font-semibold text-white m-0">{feat.title}</h3>
-                <p className="text-sm text-[#94a3b8] leading-relaxed m-0">{feat.desc}</p>
+                <h3 className="text-base font-semibold text-stone-900 m-0">{feat.title}</h3>
+                <p className="text-sm text-stone-600 leading-relaxed m-0">{feat.desc}</p>
               </article>
             );
           })}

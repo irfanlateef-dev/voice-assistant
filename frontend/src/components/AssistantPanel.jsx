@@ -6,11 +6,12 @@ export default function AssistantPanel({
   greeting,
   latestAssistantMessage,
   isAssistantLive,
+  compact = false,
 }) {
   const copy = getStatusCopy(status);
 
   return (
-    <aside className="assistant-panel">
+    <aside className={`assistant-panel${compact ? ' assistant-panel--compact' : ''}`}>
       <div className="assistant-panel__visual">
         <AssistantVisual status={status} />
       </div>
@@ -24,20 +25,20 @@ export default function AssistantPanel({
 
       <div className={`assistant-panel__response${isAssistantLive ? ' assistant-panel__response--live' : ''}`}>
         <p className="assistant-panel__response-label">
-          {isAssistantLive ? 'Speaking now' : 'Latest response'}
+          {isAssistantLive ? 'Speaking now' : 'Latest from Grace'}
         </p>
         <p className="assistant-panel__response-text">
           {latestAssistantMessage
-            || (isConnected ? 'Waiting for your first message…' : greeting || 'Connect to start talking with your assistant.')}
+            || (isConnected ? 'Waiting for your first message…' : greeting || 'Connect to start cooking with Grace.')}
         </p>
       </div>
 
       <div className="assistant-panel__tips">
         <p className="assistant-panel__tips-title">Try saying</p>
         <ul>
-          <li>“Add a task to call the dentist.”</li>
-          <li>“What is on my to-do list?”</li>
-          <li>“Note: ideas for the project.”</li>
+          <li>“I added the garlic.”</li>
+          <li>“What&apos;s the next step?”</li>
+          <li>“Where did we leave off?”</li>
         </ul>
       </div>
     </aside>

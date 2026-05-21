@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { GRACE_SYSTEM_PROMPT } from './prompts/grace.js';
+
 const CONFIG_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'config.json');
 
 export function loadConfig() {
@@ -60,7 +62,7 @@ export function getLlmSettings(cfg) {
   return {
     provider_type: provider.type,
     model: provider.model,
-    system_prompt: think.prompt ?? '',
+    system_prompt: think.prompt?.trim() || GRACE_SYSTEM_PROMPT,
   };
 }
 
