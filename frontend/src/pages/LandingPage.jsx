@@ -11,7 +11,7 @@ const Footer = lazy(() => import('../components/landing/Footer.jsx'));
 
 const SectionFallback = () => (
   <div className="h-32 flex items-center justify-center">
-    <div className="w-6 h-6 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+    <div className="w-6 h-6 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
   </div>
 );
 

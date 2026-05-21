@@ -1,45 +1,45 @@
-import { Briefcase, Lightbulb, Users } from 'lucide-react';
+import { BookOpen, Clock, Heart } from 'lucide-react';
 import { useReveal } from '../../hooks/useReveal.js';
 
 const CASES = [
   {
-    accent: '#6366f1',
-    icon: Briefcase,
-    title: 'Meeting follow-ups',
-    persona: 'Busy professionals',
-    summary: 'Capture action items the moment a call ends — while walking to your next meeting or grabbing coffee.',
+    accent: '#f59e0b',
+    icon: BookOpen,
+    title: 'First-time cooks',
+    persona: 'Beginner cooks',
+    summary: "Never cooked this dish before? Grace explains every step, warns you before things go wrong, and tells you what to look for.",
     examples: [
-      'Add a task to send the proposal by Friday',
-      'What tasks are still pending?',
-      'Mark follow up with client as done',
+      'How do I know when the oil is hot enough?',
+      'What does "fold in" mean?',
+      'Can I use butter instead of ghee?',
     ],
-    capabilities: ['Task creation', 'Follow-up reminders', 'Status updates'],
+    capabilities: ['Step-by-step guidance', 'Substitution tips', 'Beginner-friendly'],
   },
   {
-    accent: '#a855f7',
-    icon: Lightbulb,
-    title: 'Hands-free note capture',
-    persona: 'Solo founders & creators',
-    summary: "Save ideas, reminders, and rough thoughts instantly — no unlocking your phone or opening a notes app.",
+    accent: '#ea580c',
+    icon: Clock,
+    title: 'Busy parents',
+    persona: 'Multitasking parents',
+    summary: "Hands full? Say everything, touch nothing. Grace keeps track of where you are even if you get interrupted mid-recipe.",
     examples: [
-      'Note: pitch angle for the product demo',
-      'Save a note about pricing tiers',
-      'Find my notes about the launch',
+      'Where were we?',
+      'I added the tomatoes',
+      'How long does this step take?',
     ],
-    capabilities: ['Note capture', 'Keyword search', 'Instant recall'],
+    capabilities: ['Hands-free control', 'Progress memory', 'Quick catch-up'],
   },
   {
-    accent: '#22d3ee',
-    icon: Users,
-    title: 'Standup & planning',
-    persona: 'Remote team leads',
-    summary: "Log decisions and next steps right after standup so nothing slips through before the day gets away from you.",
+    accent: '#fbbf24',
+    icon: Heart,
+    title: 'Solo cooks',
+    persona: 'People who cook alone',
+    summary: "Grace keeps you company. Food facts, questions, jokes. Cooking alone has never been less lonely.",
     examples: [
-      'Add tasks for the API migration sprint',
-      'Note: team agreed to ship v2 on Thursday',
-      'List my open tasks for this week',
+      'Tell me something interesting about turmeric',
+      'What wine goes with this?',
+      'What should I make next time?',
     ],
-    capabilities: ['Meeting notes', 'Task delegation', 'Weekly planning'],
+    capabilities: ['Conversation', 'Food facts', 'Cooking companionship'],
   },
 ];
 
@@ -48,25 +48,25 @@ export default function UseCases() {
   const gridRef   = useReveal();
 
   return (
-    <section id="use-cases" className="py-28 relative overflow-hidden">
+    <section id="use-cases" className="py-28 relative overflow-hidden bg-white">
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse at 50% 60%, rgba(99,102,241,0.07) 0%, transparent 65%)',
+          background: 'radial-gradient(ellipse at 50% 60%, rgba(245,158,11,0.08) 0%, transparent 65%)',
         }}
       />
 
       <div className="max-w-7xl mx-auto px-6 relative">
 
         <div ref={headerRef} className="reveal text-center mb-16">
-          <p className="text-indigo-400 text-sm font-semibold uppercase tracking-widest mb-3">
-            Use cases
+          <p className="text-amber-600 text-sm font-semibold uppercase tracking-widest mb-3">
+            Who it's for
           </p>
-          <h2 className="text-4xl md:text-[2.75rem] font-bold text-white leading-tight mb-4">
-            Built for people who move fast.
+          <h2 className="text-4xl md:text-[2.75rem] font-bold text-stone-900 leading-tight mb-4">
+            In the kitchen, Grace has your back.
           </h2>
-          <p className="text-[#94a3b8] text-lg max-w-xl mx-auto">
-            If your hands are busy, your voice isn't.
+          <p className="text-stone-600 text-lg max-w-xl mx-auto">
+            Whether it's your first time or your hundredth.
           </p>
         </div>
 
@@ -95,24 +95,24 @@ export default function UseCases() {
                     <Icon size={20} style={{ color: c.accent }} strokeWidth={2} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white m-0 leading-tight">{c.title}</h3>
+                    <h3 className="text-lg font-bold text-stone-900 m-0 leading-tight">{c.title}</h3>
                     <p className="text-xs font-semibold uppercase tracking-wider mt-1.5 m-0" style={{ color: c.accent }}>
                       {c.persona}
                     </p>
                   </div>
                 </div>
 
-                <p className="text-[#94a3b8] text-sm leading-relaxed m-0">{c.summary}</p>
+                <p className="text-stone-600 text-sm leading-relaxed m-0">{c.summary}</p>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-[#64748b] mb-2.5 m-0">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-2.5 m-0">
                     Try saying
                   </p>
                   <ul className="flex flex-col gap-2 list-none m-0 p-0">
                     {c.examples.map((line) => (
                       <li
                         key={line}
-                        className="text-sm text-indigo-200/90 px-3 py-2 rounded-lg border border-indigo-500/15 bg-indigo-500/8 leading-snug"
+                        className="text-sm text-amber-900 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 leading-snug"
                       >
                         "{line}"
                       </li>
@@ -124,7 +124,7 @@ export default function UseCases() {
                   {c.capabilities.map((tag) => (
                     <span
                       key={tag}
-                      className="px-2.5 py-1 rounded-md text-xs text-[#94a3b8] border border-white/[0.08] bg-white/[0.03]"
+                      className="px-2.5 py-1 rounded-md text-xs text-stone-600 border border-stone-200 bg-stone-50"
                     >
                       {tag}
                     </span>

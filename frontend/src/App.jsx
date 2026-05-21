@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { GuestRoute, ProtectedRoute } from './components/RouteGuards.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import KitchenHomePage from './pages/KitchenHomePage.jsx';
 import WorkspacePage from './pages/WorkspacePage.jsx';
 
 export default function App() {
@@ -20,6 +21,22 @@ export default function App() {
         />
         <Route
           path="/app"
+          element={(
+            <ProtectedRoute>
+              <KitchenHomePage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/app/cook"
+          element={(
+            <ProtectedRoute>
+              <WorkspacePage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/app/cook/:sessionId"
           element={(
             <ProtectedRoute>
               <WorkspacePage />

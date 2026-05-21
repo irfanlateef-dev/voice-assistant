@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import AppLink from './AppLink.jsx';
 import { getAppCtaLabel } from '../../config/appLinks.js';
 
-const HEADLINE_WORDS_1 = ['Ready', 'for', 'your'];
-const HEADLINE_WORDS_2 = ['calls,', '24/7.'];
+const HEADLINE_WORDS_1 = ['Your', 'sous', 'chef'];
+const HEADLINE_WORDS_2 = ['is', 'listening.'];
 
 const TRANSCRIPT_SEQUENCE = [
-  { role: 'user',      text: 'Add a task to call the dentist',  delay: 1200 },
-  { role: 'assistant', text: 'Done! Task added.',               delay: 2400 },
-  { role: 'user',      text: 'Note: follow up on proposal',     delay: 4000 },
-  { role: 'assistant', text: 'Saved!',                          delay: 5200 },
-  { role: 'user',      text: "What's on my to-do list?",        delay: 7000 },
-  { role: 'assistant', text: 'You have 3 pending tasks.',        delay: 8400 },
+  { role: 'user', text: 'I want to make butter chicken', delay: 1000 },
+  { role: 'assistant', text: 'Love it! How spicy do you like it?', delay: 2400 },
+  { role: 'user', text: 'Medium, and low oil please', delay: 4200 },
+  { role: 'assistant', text: 'Perfect. Do you have heavy cream or coconut milk?', delay: 5800 },
+  { role: 'user', text: 'Coconut milk works', delay: 7600 },
+  { role: 'assistant', text: 'Adding your ingredients now…', delay: 9000 },
 ];
 
 function SiriOrb() {
@@ -26,11 +26,7 @@ function SiriOrb() {
       </div>
       <div className="siri-orb__waves">
         {[0, 1, 2, 3, 4].map((i) => (
-          <span
-            key={i}
-            className="siri-orb__wave"
-            style={{ animationDelay: `${i * 0.13}s` }}
-          />
+          <span key={i} className="siri-orb__wave" style={{ animationDelay: `${i * 0.13}s` }} />
         ))}
       </div>
       <div className="siri-orb__ripple siri-orb__ripple--1" />
@@ -66,7 +62,7 @@ function LiveSessionCard() {
         setTimeout(() => {
           if (cancelled) return;
           runCycle();
-        }, lastDelay + 2500),
+        }, lastDelay + 2800),
       );
     };
 
@@ -86,8 +82,10 @@ function LiveSessionCard() {
   return (
     <div className="glass-card p-4 w-72 h-[240px] flex flex-col shrink-0">
       <div className="flex items-center gap-2 mb-3 shrink-0">
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-xs font-semibold text-emerald-400 uppercase tracking-widest">Live session</span>
+        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+        <span className="text-xs font-semibold text-amber-700 uppercase tracking-widest">
+          Live session
+        </span>
       </div>
       <div
         ref={feedRef}
@@ -99,8 +97,8 @@ function LiveSessionCard() {
               key={i}
               className={`bubble-appear text-xs px-3 py-1.5 rounded-lg max-w-[90%] shrink-0 ${
                 item.role === 'user'
-                  ? 'self-end bg-indigo-500/20 text-indigo-200 border border-indigo-500/20'
-                  : 'self-start bg-white/[0.06] text-slate-300 border border-white/[0.08]'
+                  ? 'self-end bg-amber-50 text-amber-900 border border-amber-200'
+                  : 'self-start bg-stone-100 text-stone-700 border border-stone-200'
               }`}
             >
               {item.text}
@@ -114,34 +112,27 @@ function LiveSessionCard() {
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
+    <section className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-stone-50">
       <div className="noise-overlay" />
       <div className="blob blob-1" />
       <div className="blob blob-2" />
 
       <div className="max-w-7xl mx-auto px-6 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center py-20">
-
-          {/* ── Left: text ── */}
           <div className="flex flex-col gap-8">
-            {/* Eyebrow badge */}
             <div className="hero-fade-up" style={{ animationDelay: '0s' }}>
-              <span
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-indigo-300 border"
-                style={{ borderColor: 'rgba(99,102,241,0.4)', background: 'rgba(99,102,241,0.1)' }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-amber-800 border border-amber-200 bg-amber-50">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                 Powered by Deepgram + LiveKit
               </span>
             </div>
 
-            {/* Headline */}
             <h1 className="text-[3.5rem] sm:text-[4rem] lg:text-[4.75rem] font-extrabold leading-[1.08] tracking-tight">
               <div className="flex flex-wrap gap-x-4">
                 {HEADLINE_WORDS_1.map((word, i) => (
                   <span
                     key={word}
-                    className="hero-word text-white"
+                    className="hero-word text-stone-900"
                     style={{ animationDelay: `${i * 0.08}s` }}
                   >
                     {word}
@@ -152,7 +143,7 @@ export default function Hero() {
                 {HEADLINE_WORDS_2.map((word, i) => (
                   <span
                     key={word}
-                    className={`hero-word ${i === 1 ? 'gradient-text' : 'text-white'}`}
+                    className={`hero-word ${i === 1 ? 'gradient-text' : 'text-stone-900'}`}
                     style={{ animationDelay: `${(HEADLINE_WORDS_1.length + i) * 0.08}s` }}
                   >
                     {word}
@@ -161,44 +152,35 @@ export default function Hero() {
               </div>
             </h1>
 
-            {/* Sub-headline */}
             <p
-              className="hero-fade-up text-lg text-[#94a3b8] leading-relaxed max-w-xl"
+              className="hero-fade-up text-lg text-stone-600 leading-relaxed max-w-xl"
               style={{ animationDelay: '0.55s' }}
             >
-              Speak naturally. Your AI assistant creates tasks, captures notes, and manages
-              your to-do list — without touching a keyboard.
+              Just say what you want to cook. Grace guides you step by step, remembers your
+              preferences, and keeps you company while things simmer.
             </p>
 
-            {/* CTA buttons */}
-            <div
-              className="hero-fade-up flex flex-wrap gap-4"
-              style={{ animationDelay: '0.7s' }}
-            >
+            <div className="hero-fade-up flex flex-wrap gap-4" style={{ animationDelay: '0.7s' }}>
               <AppLink
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold text-white no-underline transition-all duration-200 hover:brightness-110 hover:shadow-xl hover:shadow-indigo-500/30"
-                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold text-white no-underline transition-all duration-200 hover:brightness-105 hover:shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #ea580c)' }}
               >
-                {getAppCtaLabel('Start talking free')}
+                {getAppCtaLabel('Start cooking free')}
               </AppLink>
               <a
                 href="#how-it-works"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold text-indigo-300 no-underline border border-indigo-500/30 hover:bg-indigo-500/10 hover:border-indigo-400/50 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold text-amber-800 no-underline border border-amber-200 bg-white hover:bg-amber-50 transition-all duration-200"
               >
                 See how it works
               </a>
             </div>
 
-            {/* Social proof */}
-            <div
-              className="hero-fade-up flex items-center gap-4 mt-2"
-              style={{ animationDelay: '0.9s' }}
-            >
+            <div className="hero-fade-up flex items-center gap-4 mt-2" style={{ animationDelay: '0.9s' }}>
               <div className="flex -space-x-2">
-                {['#6366f1','#a855f7','#22d3ee','#ec4899','#f59e0b'].map((c, i) => (
+                {['#f59e0b', '#ea580c', '#fbbf24', '#f97316', '#fcd34d'].map((c, i) => (
                   <div
                     key={i}
-                    className="w-8 h-8 rounded-full border-2 border-[#070b14] flex items-center justify-center text-xs font-bold text-white"
+                    className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white"
                     style={{ background: `radial-gradient(circle at 40% 35%, ${c}dd, ${c}66)` }}
                   >
                     {String.fromCharCode(65 + i)}
@@ -206,26 +188,21 @@ export default function Hero() {
                 ))}
               </div>
               <div>
-                <p className="text-sm font-semibold text-white m-0">2,000+ users active</p>
-                <p className="text-xs text-[#94a3b8] m-0">★★★★★ Loved by builders</p>
+                <p className="text-sm font-semibold text-stone-900 m-0">Home cooks love it</p>
+                <p className="text-xs text-stone-500 m-0">★★★★★ Hands-free & delicious</p>
               </div>
             </div>
           </div>
 
-          {/* ── Right: visual ── */}
           <div className="hero-scale-in flex flex-col items-center gap-6 relative min-h-[580px] justify-center">
-            <div
-              className="absolute top-0 right-4 lg:right-0 z-10 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold text-emerald-300 border border-emerald-500/30"
-              style={{ background: 'rgba(16,185,129,0.12)' }}
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Agent online
+            <div className="absolute top-0 right-4 lg:right-0 z-10 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold text-amber-800 border border-amber-200 bg-white shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              Grace is online
             </div>
 
             <SiriOrb />
             <LiveSessionCard />
           </div>
-
         </div>
       </div>
     </section>
