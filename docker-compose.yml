@@ -20,6 +20,7 @@ services:
       target: web
       args:
         VITE_LIVEKIT_URL: ${LIVEKIT_URL}
+        VITE_API_BASE: ""
     # Remove the ports mapping since nginx will handle routing
     # ports:
     #   - "${PORT:-8000}:8000"

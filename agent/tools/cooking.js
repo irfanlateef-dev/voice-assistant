@@ -22,8 +22,12 @@ async function runTool(name, fn) {
     console.log(`[tool] ${name} ok (${Date.now() - start}ms)`);
     return result;
   } catch (err) {
-    console.error(`[tool] ${name} failed (${Date.now() - start}ms):`, err);
-    return { success: false, error: `Could not complete ${name}` };
+    console.error(
+      `[tool] ${name} FAILED (${Date.now() - start}ms):`,
+      err.message,
+      err.stack,
+    );
+    return { success: false, error: `Could not complete ${name}: ${err.message}` };
   }
 }
 

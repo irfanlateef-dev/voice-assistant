@@ -116,7 +116,6 @@ export function useVoiceAgent(
   const connectingRef = useRef(false);
   const connectGenerationRef = useRef(0);
   const allowAutoConnectRef = useRef(autoConnect);
-  const autoConnectStartedRef = useRef(false);
   const wasAgentSpeakingRef = useRef(false);
   const isAgentSpeakingRef = useRef(false);
   const isUserSpeakingRef = useRef(false);
@@ -130,6 +129,7 @@ export function useVoiceAgent(
     }
     const delay = isThinkingRef.current ? THINKING_STALL_TIMEOUT_MS : STALL_TIMEOUT_MS;
     stallTimerRef.current = setTimeout(() => {
+      if (isAgentSpeakingRef.current) return;
       setIsStalled(true);
     }, delay);
   }, []);
@@ -165,6 +165,8 @@ export function useVoiceAgent(
 
   const disconnect = useCallback(async ({ intentional = true } = {}) => {
     if (intentional) {
+      // User explicitly ended the session — block auto-reconnect while still on this page.
+      // fullReset() resets this to true on navigation away.
       allowAutoConnectRef.current = false;
     }
 
@@ -208,6 +210,53 @@ export function useVoiceAgent(
     }
   }, [clearStallTimer]);
 
+  const fullReset = useCallback(async () => {
+    connectGenerationRef.current += 1;
+
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    if (interruptedTimerRef.current) clearTimeout(interruptedTimerRef.current);
+    stallTimerRef.current = null;
+    interruptedTimerRef.current = null;
+
+    const room = roomRef.current;
+    if (room) {
+      try {
+        room.remoteParticipants.forEach((participant) => {
+          participant.trackPublications.forEach((publication) => {
+            if (publication.track) detachRemoteAudio(publication.track);
+          });
+        });
+        await releaseLocalMedia(room);
+        await room.disconnect();
+      } catch (err) {
+        console.warn('[useVoiceAgent] fullReset disconnect error (ignored):', err.message);
+      }
+      roomRef.current = null;
+    }
+
+    document.querySelectorAll('audio[data-participant]').forEach((el) => el.remove());
+
+    connectingRef.current = false;
+    wasAgentSpeakingRef.current = false;
+    isAgentSpeakingRef.current = false;
+    isUserSpeakingRef.current = false;
+    isThinkingRef.current = false;
+    allowAutoConnectRef.current = true;
+
+    setIsConnected(false);
+    setIsAgentReady(false);
+    setIsConnecting(false);
+    setIsDisconnecting(false);
+    setIsAgentSpeaking(false);
+    setIsUserSpeaking(false);
+    setIsInterrupted(false);
+    setIsStalled(false);
+    setIsThinking(false);
+    setIsMuted(false);
+    setConnectError('');
+    setTranscript([]);
+  }, []);
+
   const connect = useCallback(async () => {
     if (roomRef.current || connectingRef.current || !getToken) return;
 
@@ -250,7 +299,9 @@ export function useVoiceAgent(
       const livekitUrl = import.meta.env.VITE_LIVEKIT_URL;
 
       if (!livekitUrl) {
-        throw new Error('LiveKit URL not configured. Set VITE_LIVEKIT_URL in frontend .env.');
+        throw new Error(
+          'VITE_LIVEKIT_URL is not set in the frontend build. Rebuild with VITE_LIVEKIT_URL env var.',
+        );
       }
 
       room = new Room({
@@ -416,14 +467,16 @@ export function useVoiceAgent(
     }
   }, [getToken, flashInterrupted, inputSampleRate, clearStallTimer, scheduleStallCheck]);
 
-  // Auto-connect once when auth is ready — never after manual disconnect.
   useEffect(() => {
-    if (!autoConnect || !authReady || !getToken) return;
-    if (autoConnectStartedRef.current || !allowAutoConnectRef.current) return;
+    if (!autoConnect) return;
+    if (!authReady) return;
+    if (!getToken) return;
+    if (isConnected || isConnecting) return;
+    if (roomRef.current || connectingRef.current) return;
+    if (!allowAutoConnectRef.current) return;
 
-    autoConnectStartedRef.current = true;
     connect();
-  }, [autoConnect, authReady, getToken, connect]);
+  }, [autoConnect, authReady, getToken, connect, isConnected, isConnecting]);
 
   const reconnect = useCallback(async () => {
     allowAutoConnectRef.current = true;
@@ -442,19 +495,9 @@ export function useVoiceAgent(
 
   useEffect(() => {
     return () => {
-      connectGenerationRef.current += 1;
-      if (interruptedTimerRef.current) clearTimeout(interruptedTimerRef.current);
-      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
-
-      const room = roomRef.current;
-      if (room) {
-        releaseLocalMedia(room).finally(() => {
-          room.disconnect();
-        });
-        roomRef.current = null;
-      }
+      fullReset().catch(() => {});
     };
-  }, []);
+  }, [fullReset]);
 
   const status = !isConnected
     ? isConnecting
@@ -476,6 +519,7 @@ export function useVoiceAgent(
     connect,
     disconnect,
     reconnect,
+    fullReset,
     isConnected,
     isAgentReady,
     isConnecting,
