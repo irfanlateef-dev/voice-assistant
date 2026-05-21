@@ -3,6 +3,7 @@ import AssistantVisual, { getStatusCopy } from './AssistantVisual';
 export default function AssistantPanel({
   status,
   isConnected,
+  isAgentReady = false,
   greeting,
   latestAssistantMessage,
   isAssistantLive,
@@ -29,7 +30,11 @@ export default function AssistantPanel({
         </p>
         <p className="assistant-panel__response-text">
           {latestAssistantMessage
-            || (isConnected ? 'Waiting for your first message…' : greeting || 'Connect to start cooking with Grace.')}
+            || (isConnected && isAgentReady
+              ? 'Grace is listening…'
+              : isConnected
+                ? 'Connecting to Grace…'
+                : greeting || 'Connect to start cooking with Grace.')}
         </p>
       </div>
 

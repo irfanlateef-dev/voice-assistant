@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import AssistantPanel from '../components/AssistantPanel.jsx';
@@ -48,17 +48,29 @@ export default function WorkspacePage() {
     [navigate, sessionId],
   );
 
+  const authReady = useMemo(() => !isLoading && !!token, [isLoading, token]);
+
   const { session, ingredients, steps, notes, isLoading: dataLoading } = useCookingSession(
     getToken,
     refreshKey,
     sessionId ?? null,
   );
 
+  const prevSessionIdRef = useRef(sessionId);
+  useEffect(() => {
+    if (prevSessionIdRef.current !== sessionId) {
+      prevSessionIdRef.current = sessionId;
+      setRefreshKey(0);
+    }
+  }, [sessionId]);
+
   const {
     connect,
     disconnect,
     reconnect,
+    fullReset,
     isConnected,
+    isAgentReady,
     isConnecting,
     isDisconnecting,
     isStalled,
@@ -72,8 +84,14 @@ export default function WorkspacePage() {
     onAction: handleAction,
     sessionId: sessionId ?? null,
     autoConnect: true,
-    authReady: !isLoading && !!token,
+    authReady,
   });
+
+  useEffect(() => {
+    return () => {
+      fullReset().catch(() => {});
+    };
+  }, [fullReset]);
 
   const { latestAssistantMessage, isAssistantLive } = useMemo(() => {
     for (let i = transcript.length - 1; i >= 0; i -= 1) {
@@ -89,16 +107,16 @@ export default function WorkspacePage() {
 
   const addedCount = ingredients.filter((i) => i.status === 'added').length;
 
-  const handleLogout = async () => {
-    await disconnect();
+  const handleLogout = useCallback(() => {
+    fullReset().catch((err) => console.warn('[WorkspacePage] fullReset error on logout:', err));
     logout();
     navigate('/login', { replace: true });
-  };
+  }, [fullReset, logout, navigate]);
 
-  const handleBack = async () => {
-    await disconnect();
+  const handleBack = useCallback(() => {
+    fullReset().catch((err) => console.warn('[WorkspacePage] fullReset error:', err));
     navigate('/app');
-  };
+  }, [fullReset, navigate]);
 
   return (
     <div className="app">
@@ -212,6 +230,7 @@ export default function WorkspacePage() {
                     compact
                     status={status}
                     isConnected={isConnected}
+                    isAgentReady={isAgentReady}
                     greeting={greeting}
                     latestAssistantMessage={latestAssistantMessage}
                     isAssistantLive={isAssistantLive}

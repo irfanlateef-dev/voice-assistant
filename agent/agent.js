@@ -127,7 +127,11 @@ export default defineAgent({
   entry: async (ctx) => {
     await ctx.connect();
 
+    console.log('[session] resolving participant context...');
     const { userId, cookingSessionId } = await resolveParticipantContext(ctx.room);
+    console.log(
+      `[session] resolved: userId=${userId}, cookingSessionId=${cookingSessionId}`,
+    );
     const user = await getUserById(userId);
     console.log(
       `[session] user connected: ${userId} (${user?.email ?? 'unknown'})` +
