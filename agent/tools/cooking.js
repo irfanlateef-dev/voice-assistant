@@ -7,6 +7,31 @@ import * as stepService from '../services/cookingStepService.js';
 import * as noteService from '../services/cookingNoteService.js';
 import { clearTimersFor, scheduleStepTimers } from '../lib/cookingTimers.js';
 
+const QUALITATIVE_AMOUNTS = /^(to taste|a pinch|as needed|for garnish|optional|a dash|a splash)$/i;
+
+function normalizeIngredient(ing) {
+  const name = ing.name?.trim() ?? '';
+  let quantity = String(ing.quantity ?? '').trim();
+  let unit = String(ing.unit ?? '').trim();
+
+  if (QUALITATIVE_AMOUNTS.test(quantity) || QUALITATIVE_AMOUNTS.test(unit)) {
+    quantity = quantity || unit;
+    unit = '';
+  } else if (unit && !quantity) {
+    quantity = unit;
+    unit = '';
+  } else if (quantity && unit && quantity.toLowerCase().includes(unit.toLowerCase())) {
+    unit = '';
+  }
+
+  return {
+    name,
+    quantity: quantity || null,
+    unit: unit || null,
+    sort_order: ing.sort_order ?? 0,
+  };
+}
+
 function publishAction(room, payload) {
   if (!room) return;
   const data = Buffer.from(JSON.stringify({ type: 'action', ...payload }));
@@ -229,9 +254,18 @@ export function buildCookingTools(userId, room, sessionHolder = { session: null 
         session_id: z.string().describe('The cooking session ID'),
         ingredients: z.array(
           z.object({
-            name: z.string(),
-            quantity: z.string(),
-            unit: z.string().optional(),
+            name: z.string().describe('Ingredient name, e.g. "chicken breast"'),
+            quantity: z
+              .string()
+              .describe(
+                'Amount: a number ("200", "2", "½") OR qualitative phrase ("to taste", "a pinch"). Never leave ambiguous.',
+              ),
+            unit: z
+              .string()
+              .optional()
+              .describe(
+                'Unit for numeric amounts — required for numbers: g, kg, ml, cup, tbsp, tsp, oz, lb, cloves, slices, etc. Omit for "to taste" / "a pinch".',
+              ),
             sort_order: z.number(),
           }),
         ),
@@ -245,8 +279,17 @@ export function buildCookingTools(userId, room, sessionHolder = { session: null 
       }),
       execute: async ({ session_id, ingredients, steps }) =>
         runTool('save_recipe', async () => {
+          const normalizedIngredients = ingredients.map(normalizeIngredient);
+          for (const ing of normalizedIngredients) {
+            if (/^\d+([./]\d+)?$/.test(ing.quantity) && !ing.unit) {
+              console.warn(
+                `[save_recipe] ingredient "${ing.name}" has quantity "${ing.quantity}" but no unit`,
+              );
+            }
+          }
+
           const [ingRows, stepRows] = await Promise.all([
-            ingredientService.bulkCreateIngredients(session_id, ingredients),
+            ingredientService.bulkCreateIngredients(session_id, normalizedIngredients),
             stepService.bulkCreateSteps(session_id, steps),
           ]);
           await sessionService.startCooking(session_id, userId);
