@@ -1,3 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+
 export default function ControlBar({
   isConnected,
   isConnecting,
@@ -5,11 +8,18 @@ export default function ControlBar({
   isStalled,
   status,
   isMuted,
+  audioInputDevices = [],
+  selectedAudioInputId = '',
   onConnect,
   onDisconnect,
   onReconnect,
   onToggleMute,
+  onRefreshAudioInput,
+  onSelectAudioInput,
 }) {
+  const [showMicMenu, setShowMicMenu] = useState(false);
+  const micControlRef = useRef(null);
+
   const statusLabels = {
     idle: 'Ready',
     connecting: 'Connecting to Grace…',
@@ -27,6 +37,35 @@ export default function ControlBar({
   else if (isDisconnecting) buttonLabel = 'Ending…';
   else if (isConnected) buttonLabel = 'End session';
   else buttonLabel = 'Connect to Grace';
+
+  useEffect(() => {
+    if (!showMicMenu) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (micControlRef.current?.contains(event.target)) return;
+      setShowMicMenu(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [showMicMenu]);
+
+  const handleToggleMicMenu = async () => {
+    if (showMicMenu) {
+      setShowMicMenu(false);
+      return;
+    }
+
+    await onRefreshAudioInput?.({ requestPermission: true });
+    setShowMicMenu(true);
+  };
+
+  const handleSelectMic = (deviceId) => {
+    onSelectAudioInput?.(deviceId);
+    setShowMicMenu(false);
+  };
 
   return (
     <div className="control-bar">
@@ -50,15 +89,55 @@ export default function ControlBar({
         </button>
       )}
 
-      <button
-        type="button"
-        className={`control-btn control-btn--mute ${isMuted ? 'muted' : ''}`}
-        onClick={onToggleMute}
-        disabled={!isConnected}
-        aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
-      >
-        <MicIcon muted={isMuted} />
-      </button>
+      <div className="mic-control" ref={micControlRef}>
+        <button
+          type="button"
+          className={`control-btn control-btn--mute ${isMuted ? 'muted' : ''}`}
+          onClick={onToggleMute}
+          disabled={!isConnected}
+          aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+        >
+          <MicIcon muted={isMuted} />
+        </button>
+
+        <button
+          type="button"
+          className={`mic-control__toggle${showMicMenu ? ' mic-control__toggle--open' : ''}`}
+          onClick={handleToggleMicMenu}
+          aria-label="Select microphone"
+          aria-haspopup="listbox"
+          aria-expanded={showMicMenu}
+        >
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+
+        {showMicMenu && (
+          <div className="mic-control__menu" role="listbox" aria-label="Available microphones">
+            {audioInputDevices.length === 0 ? (
+              <p className="mic-control__empty">No microphones found</p>
+            ) : (
+              audioInputDevices.map((device) => {
+                const isActive = device.deviceId === selectedAudioInputId;
+                const label = device.label?.trim() || `Microphone ${device.deviceId.slice(0, 8)}…`;
+
+                return (
+                  <button
+                    key={device.deviceId}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    className={`mic-control__option${isActive ? ' mic-control__option--active' : ''}`}
+                    onClick={() => handleSelectMic(device.deviceId)}
+                  >
+                    <span className="mic-control__option-label">{label}</span>
+                    {isActive && <Check size={14} aria-hidden="true" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
 
       <span className={`status-label status-label--${status}`}>
         {statusLabels[status] || status}
