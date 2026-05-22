@@ -1,3 +1,5 @@
+import { formatIngredientAmount } from '../../lib/formatIngredient.js';
+
 export default function IngredientChecklist({ ingredients, isLoading }) {
   if (isLoading) {
     return (
@@ -26,14 +28,18 @@ export default function IngredientChecklist({ ingredients, isLoading }) {
         <div key={ing.id} className="ingredient-item">
           <div className="ingredient-item__check" />
           <span className="ingredient-item__name">{ing.name}</span>
-          {ing.quantity && <span className="ingredient-item__qty">{ing.quantity}</span>}
+          {formatIngredientAmount(ing) && (
+            <span className="ingredient-item__qty">{formatIngredientAmount(ing)}</span>
+          )}
         </div>
       ))}
       {added.map((ing) => (
         <div key={ing.id} className="ingredient-item ingredient-item--added">
           <div className="ingredient-item__check" />
           <span className="ingredient-item__name">{ing.name}</span>
-          {ing.quantity && <span className="ingredient-item__qty">{ing.quantity}</span>}
+          {formatIngredientAmount(ing) && (
+            <span className="ingredient-item__qty">{formatIngredientAmount(ing)}</span>
+          )}
         </div>
       ))}
     </>
