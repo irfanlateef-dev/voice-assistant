@@ -78,6 +78,10 @@ export default function WorkspacePage() {
     transcript,
     isMuted,
     toggleMute,
+    audioInputDevices,
+    selectedAudioInputId,
+    refreshAudioInputDevices,
+    selectAudioInput,
     greeting,
     connectError,
   } = useVoiceAgent(getToken, {
@@ -243,10 +247,14 @@ export default function WorkspacePage() {
         isStalled={isStalled}
         status={status}
         isMuted={isMuted}
+        audioInputDevices={audioInputDevices}
+        selectedAudioInputId={selectedAudioInputId}
         onConnect={connect}
         onDisconnect={() => disconnect()}
         onReconnect={reconnect}
         onToggleMute={toggleMute}
+        onRefreshAudioInput={refreshAudioInputDevices}
+        onSelectAudioInput={selectAudioInput}
       />
     </div>
   );

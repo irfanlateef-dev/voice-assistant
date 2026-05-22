@@ -5,6 +5,15 @@ import { API_BASE } from '../config/api.js';
 
 const STALL_TIMEOUT_MS = 90_000;
 const THINKING_STALL_TIMEOUT_MS = 120_000;
+const MIC_PREF_KEY = 'voice-agent-mic-device';
+
+function readMicPreference() {
+  try {
+    return localStorage.getItem(MIC_PREF_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 function attachRemoteAudio(track, participant) {
   if (track.kind !== Track.Kind.Audio || participant.isLocal) return;
@@ -107,6 +116,8 @@ export function useVoiceAgent(
   const [isMuted, setIsMuted] = useState(false);
   const [inputSampleRate, setInputSampleRate] = useState(48000);
   const [connectError, setConnectError] = useState('');
+  const [audioInputDevices, setAudioInputDevices] = useState([]);
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState(readMicPreference);
 
   const onActionRef = useRef(onAction);
   onActionRef.current = onAction;
@@ -122,6 +133,64 @@ export function useVoiceAgent(
   const interruptedTimerRef = useRef(null);
   const stallTimerRef = useRef(null);
   const isThinkingRef = useRef(false);
+  const selectedAudioInputIdRef = useRef(selectedAudioInputId);
+  selectedAudioInputIdRef.current = selectedAudioInputId;
+
+  const refreshAudioInputDevices = useCallback(async ({ requestPermission = false } = {}) => {
+    try {
+      if (requestPermission && navigator.mediaDevices?.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((track) => track.stop());
+        } catch {
+          // Permission denied — still attempt to enumerate whatever is available.
+        }
+      }
+
+      const devices = await Room.getLocalDevices('audioinput');
+      setAudioInputDevices(devices);
+    } catch (err) {
+      console.warn('[useVoiceAgent] failed to list audio devices:', err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAudioInputDevices();
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.addEventListener) return undefined;
+
+    const onDeviceChange = () => {
+      refreshAudioInputDevices();
+    };
+
+    mediaDevices.addEventListener('devicechange', onDeviceChange);
+    return () => {
+      mediaDevices.removeEventListener('devicechange', onDeviceChange);
+    };
+  }, [refreshAudioInputDevices]);
+
+  const selectAudioInput = useCallback(async (deviceId) => {
+    setSelectedAudioInputId(deviceId);
+    selectedAudioInputIdRef.current = deviceId;
+
+    try {
+      localStorage.setItem(MIC_PREF_KEY, deviceId);
+    } catch {
+      // ignore storage errors
+    }
+
+    const room = roomRef.current;
+    if (!room || !deviceId) return;
+
+    try {
+      await room.switchActiveDevice('audioinput', deviceId);
+      if (!isMuted) {
+        await room.localParticipant.setMicrophoneEnabled(true);
+      }
+    } catch (err) {
+      console.error('[useVoiceAgent] failed to switch microphone:', err.message);
+    }
+  }, [isMuted]);
 
   const scheduleStallCheck = useCallback(() => {
     if (stallTimerRef.current) {
@@ -317,6 +386,9 @@ export function useVoiceAgent(
 
       room = new Room({
         audioCaptureDefaults: {
+          ...(selectedAudioInputIdRef.current
+            ? { deviceId: selectedAudioInputIdRef.current }
+            : {}),
           sampleRate: inputSampleRate,
           echoCancellation: true,
           noiseSuppression: true,
@@ -547,6 +619,10 @@ export function useVoiceAgent(
     transcript,
     isMuted,
     toggleMute,
+    audioInputDevices,
+    selectedAudioInputId,
+    refreshAudioInputDevices,
+    selectAudioInput,
     greeting,
     connectError,
   };
