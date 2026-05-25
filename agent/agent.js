@@ -71,7 +71,8 @@ function buildStt() {
 }
 
 function buildLlm() {
-  const { provider_type: provider, model } = llmCfg;
+  const { provider_type: provider, model, max_completion_tokens } = llmCfg;
+  const maxTokensOpt = max_completion_tokens ? { max_tokens: max_completion_tokens } : {};
 
   if (provider === 'google') {
     return import('@livekit/agents-plugin-google').then(
@@ -83,6 +84,7 @@ function buildLlm() {
     return new openai.LLM({
       model,
       apiKey: process.env.OPENAI_API_KEY,
+      ...maxTokensOpt,
     });
   }
 
@@ -91,6 +93,7 @@ function buildLlm() {
       model,
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: process.env.OPENROUTER_API_KEY,
+      ...maxTokensOpt,
     });
   }
 
@@ -99,6 +102,7 @@ function buildLlm() {
       model,
       baseURL: 'https://api.deepgram.com/v1/openai',
       apiKey: process.env.DEEPGRAM_API_KEY,
+      ...maxTokensOpt,
     });
   }
 

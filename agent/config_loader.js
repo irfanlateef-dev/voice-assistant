@@ -59,10 +59,16 @@ export function getTtsSettings(cfg) {
 export function getLlmSettings(cfg) {
   const think = cfg.agent.think;
   const provider = think.provider;
+  const raw = think.max_completion_tokens;
+  const maxCompletionTokens =
+    raw !== '' && raw !== null && raw !== undefined && Number(raw) > 0
+      ? Number(raw)
+      : null;
   return {
     provider_type: provider.type,
     model: provider.model,
     system_prompt: think.prompt?.trim() || GRACE_SYSTEM_PROMPT,
+    max_completion_tokens: maxCompletionTokens,
   };
 }
 

@@ -32,7 +32,8 @@
         "type": "openrouter",
         "model": "openrouter/auto"
       },
-      "prompt": ""
+      "prompt": "",
+      "max_completion_tokens": 3072
     },
     "greeting": "Hey! I'm Grace. What are we making today?"
   }
