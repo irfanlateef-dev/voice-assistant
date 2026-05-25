@@ -182,18 +182,16 @@ export default defineAgent({
         encoding: ttsCfg.encoding,
         sampleRate: ttsCfg.sample_rate,
       }),
-      voiceOptions: {
-        allowInterruptions: true,
-        minInterruptionDuration: 0,
-        minInterruptionWords: 0,
-        aecWarmupDuration: 0,
-        discardAudioIfUninterruptible: true,
-        preemptiveGeneration: false,
-        minEndpointingDelay: 0,
-        maxEndpointingDelay: 500,
-      },
+      allowInterruptions: true,
+      minInterruptionDuration: 0,
+      minInterruptionWords: 0,
+      aecWarmupDuration: 0,
+      discardAudioIfUninterruptible: true,
+      minEndpointingDelay: 0,
+      maxEndpointingDelay: 500,
       turnHandling: {
         turnDetection: 'stt',
+        preemptiveGeneration: false,
       },
       connOptions: {
         llmConnOptions: {
