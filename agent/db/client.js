@@ -1,18 +1,18 @@
-import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import pkg from 'pg';
 
 import * as schema from '../entity/index.js';
+import { getDatabaseUrl } from './database_url.js';
+
+const { Pool } = pkg;
 
 let db;
+let pool;
 
 export function getDb() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not set');
-  }
-
   if (!db) {
-    const sql = neon(process.env.DATABASE_URL);
-    db = drizzle(sql, { schema });
+    pool = new Pool({ connectionString: getDatabaseUrl() });
+    db = drizzle(pool, { schema });
   }
 
   return db;

@@ -30,7 +30,7 @@
     "think": {
       "provider": {
         "type": "openrouter",
-        "model": "openrouter/auto"
+        "model": "openrouter/free"
       },
       "prompt": "",
       "max_completion_tokens": 3072

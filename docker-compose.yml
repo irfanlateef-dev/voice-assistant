@@ -1,6 +1,30 @@
 name: voice-agent
 
+x-db-environment: &db-environment
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: voiceagent
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voiceagent}
+  POSTGRES_DB: voiceagent
+
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: voiceagent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voiceagent}
+      POSTGRES_DB: voiceagent
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voiceagent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - divescale-net
+
   migrate:
     build:
       context: .
@@ -9,6 +33,11 @@ services:
     command: ["node", "scripts/migrate.js"]
     env_file:
       - .env
+    environment:
+      <<: *db-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: "no"
     networks:
       - divescale-net
@@ -32,7 +61,10 @@ services:
       PORT: 8000
       TRUST_PROXY: "1"
       CORS_ORIGINS: https://voice-assist.duckdns.org
+      <<: *db-environment
     depends_on:
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
@@ -48,6 +80,7 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      <<: *db-environment
     depends_on:
       web:
         condition: service_healthy
@@ -64,7 +97,11 @@ services:
     command: ["node", "scripts/seed.js"]
     env_file:
       - .env
+    environment:
+      <<: *db-environment
     depends_on:
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: "no"
@@ -74,3 +111,6 @@ services:
 networks:
   divescale-net:
     external: true
+
+volumes:
+  postgres_prod_data:

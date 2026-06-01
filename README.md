@@ -2,7 +2,7 @@
 
 A real-time voice assistant that manages **tasks** and **notes** through natural conversation. Speak to the agent in the browser; it listens, thinks, acts on your data, and responds with voice.
 
-Built with LiveKit (WebRTC), Deepgram Flux STT + Aura TTS, an LLM via OpenRouter, Neon PostgreSQL, and a React frontend with a Siri-style assistant UI.
+Built with LiveKit (WebRTC), Deepgram Flux STT + Aura TTS, an LLM via OpenRouter, PostgreSQL, and a React frontend with a Siri-style assistant UI.
 
 ## Features
 
@@ -22,39 +22,102 @@ Browser (React)
 Express API (:8000)    LiveKit Cloud
     │                      │
     ▼                      ▼
-Neon PostgreSQL      Agent Worker (Node.js)
+PostgreSQL           Agent Worker (Node.js)
                          ├── Deepgram Flux STT (turn detection)
                          ├── Deepgram Aura TTS
                          ├── LLM (OpenRouter)
-                         └── Tools → task/note services → Neon
+                         └── Tools → task/note services → PostgreSQL
 ```
 
 ## Project structure
 
 ```
 voice-agent/
-├── config.json           # STT, TTS, LLM, greeting (single source of truth)
+├── config.json              # STT, TTS, LLM, greeting (single source of truth)
+├── docker-compose.dev.yml     # Local stack (Postgres + web + agent)
+├── docker-compose.yml       # Production stack
 ├── agent/
-│   ├── agent.js            # LiveKit voice worker + tools
-│   ├── server.js           # Auth, API, LiveKit tokens
-│   ├── entity/             # Drizzle schema + migrations
-│   ├── services/           # DB business logic
-│   ├── tools/              # LLM function tools
-│   └── scripts/            # migrate, seed
+│   ├── agent.js               # LiveKit voice worker + tools
+│   ├── server.js              # Auth, API, LiveKit tokens
+│   ├── entity/                # Drizzle schema + migrations
+│   ├── services/              # DB business logic
+│   ├── tools/                 # LLM function tools
+│   └── scripts/               # migrate, seed
 └── frontend/
-    └── src/                # React UI
+    └── src/                   # React UI
 ```
 
 ## Prerequisites
 
 - Node.js 20+ (Apple Silicon: prefer `arm64`)
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose (recommended for local setup)
 - Accounts / API keys for:
   - [LiveKit Cloud](https://livekit.io/)
   - [Deepgram](https://deepgram.com/)
   - [OpenRouter](https://openrouter.ai/) (or change LLM in `config.json`)
-  - [Neon](https://neon.tech/) PostgreSQL
 
-## Setup
+PostgreSQL is included in Docker Compose. For native dev without the full stack, you need PostgreSQL 16+ locally or a standalone Postgres container (see below).
+
+---
+
+## Setup (Docker — recommended)
+
+This starts PostgreSQL, runs migrations, and runs the web API, frontend, and voice agent together.
+
+### 1. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set your LiveKit, Deepgram, OpenRouter, and `JWT_SECRET` values. You do **not** need to set database variables for Docker — Compose injects `POSTGRES_*` automatically (`POSTGRES_HOST=postgres`, user/db/password `voiceagent`).
+
+### 2. Start the stack
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Open http://localhost:8000 — the built frontend and API both run on port 8000.
+
+### 3. Seed demo data (optional)
+
+In a second terminal:
+
+```bash
+docker compose -f docker-compose.dev.yml --profile seed run --rm seed
+```
+
+Demo credentials after seeding:
+
+- **Email:** `demo@voice-agent.local`
+- **Password:** `demo1234`
+
+### 4. Verify
+
+```bash
+curl http://localhost:8000/api/health
+# {"ok":true}
+```
+
+### Useful Docker commands
+
+```bash
+# Stop the stack
+docker compose -f docker-compose.dev.yml down
+
+# Stop and remove the database volume (fresh DB)
+docker compose -f docker-compose.dev.yml down -v
+
+# Rebuild after code changes
+docker compose -f docker-compose.dev.yml up --build
+```
+
+---
+
+## Setup (native — without Docker Compose)
+
+Use this when developing the frontend with Vite hot reload (`:5173`) and running the agent/API as separate Node processes.
 
 ### 1. Install dependencies
 
@@ -63,7 +126,22 @@ cd agent && npm install
 cd ../frontend && npm install
 ```
 
-### 2. Configure environment
+### 2. Start PostgreSQL
+
+**Option A — standalone Postgres container:**
+
+```bash
+docker run -d --name voiceagent-postgres \
+  -e POSTGRES_USER=voiceagent \
+  -e POSTGRES_PASSWORD=voiceagent \
+  -e POSTGRES_DB=voiceagent \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+**Option B — local PostgreSQL install** with user `voiceagent`, database `voiceagent`, and port `5432`.
+
+### 3. Configure environment
 
 **`agent/.env`** (copy from `agent/.env.example`):
 
@@ -73,7 +151,11 @@ LIVEKIT_API_KEY=...
 LIVEKIT_API_SECRET=...
 DEEPGRAM_API_KEY=...
 OPENROUTER_API_KEY=...
-DATABASE_URL=postgresql://...@...neon.tech/neondb?sslmode=require
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=voiceagent
+POSTGRES_PASSWORD=voiceagent
+POSTGRES_DB=voiceagent
 JWT_SECRET=your-random-secret
 ```
 
@@ -84,7 +166,7 @@ VITE_API_BASE=http://localhost:8000
 VITE_LIVEKIT_URL=wss://your-project.livekit.cloud
 ```
 
-### 3. Database
+### 4. Database
 
 ```bash
 cd agent
@@ -92,12 +174,7 @@ npm run migration:run    # apply migrations
 npm run seed             # optional: demo user + sample data
 ```
 
-Demo credentials after seeding:
-
-- **Email:** `demo@voice-agent.local`
-- **Password:** `demo1234`
-
-### 4. Run (3 terminals)
+### 5. Run (3 terminals)
 
 ```bash
 # Terminal 1 — API server
@@ -111,6 +188,8 @@ cd frontend && npm run dev
 ```
 
 Open http://localhost:5173 → sign in → **Connect** → start talking.
+
+---
 
 ## Voice commands to try
 
@@ -142,6 +221,21 @@ npm run migration:generate -- --name describe_change
 npm run migration:run
 ```
 
+With Docker:
+
+```bash
+docker compose -f docker-compose.dev.yml run --rm migrate
+```
+
+## Production deployment
+
+Production uses `docker-compose.yml`, which includes a self-hosted PostgreSQL service on the `divescale-net` network. Set a strong password via `POSTGRES_PASSWORD` in `.env` (defaults to `voiceagent` if unset):
+
+```bash
+docker compose up --build -d
+docker compose --profile seed run --rm seed   # optional
+```
+
 ## API overview
 
 | Method | Endpoint | Description |
@@ -162,6 +256,7 @@ npm run migration:run
 - Never commit `.env` files — they are in `.gitignore`
 - Rotate any credentials that were shared or committed by mistake
 - Use a strong random `JWT_SECRET` in production
+- Set `POSTGRES_PASSWORD` to a strong value in production (see `docker-compose.yml`)
 
 ## License
 

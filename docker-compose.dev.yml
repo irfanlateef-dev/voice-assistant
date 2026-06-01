@@ -8,11 +8,34 @@
 #   docker compose -f docker-compose.dev.yml --profile seed run --rm seed
 #
 # Requires a root .env (copy from .env.example) with LiveKit, Deepgram,
-# OpenRouter, DATABASE_URL, and JWT_SECRET.
+# OpenRouter, and JWT_SECRET. POSTGRES_* is set automatically below.
 
 name: voice-agent-dev
 
+x-db-environment: &db-environment
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: voiceagent
+  POSTGRES_PASSWORD: voiceagent
+  POSTGRES_DB: voiceagent
+
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: voiceagent
+      POSTGRES_PASSWORD: voiceagent
+      POSTGRES_DB: voiceagent
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voiceagent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - voice-agent-local
+
   migrate:
     build:
       context: .
@@ -21,6 +44,11 @@ services:
     command: ["node", "scripts/migrate.js"]
     env_file:
       - .env
+    environment:
+      <<: *db-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: "no"
     networks:
       - voice-agent-local
@@ -43,7 +71,10 @@ services:
       PORT: 8000
       TRUST_PROXY: "0"
       CORS_ORIGINS: http://localhost:8000
+      <<: *db-environment
     depends_on:
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
@@ -59,6 +90,7 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      <<: *db-environment
     depends_on:
       web:
         condition: service_healthy
@@ -75,7 +107,11 @@ services:
     command: ["node", "scripts/seed.js"]
     env_file:
       - .env
+    environment:
+      <<: *db-environment
     depends_on:
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: "no"
@@ -85,3 +121,6 @@ services:
 networks:
   voice-agent-local:
     driver: bridge
+
+volumes:
+  postgres_dev_data:
