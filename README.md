@@ -229,7 +229,7 @@ docker compose -f docker-compose.dev.yml run --rm migrate
 
 ## Production deployment
 
-Production uses `docker-compose.yml`, which includes a self-hosted PostgreSQL service on the `divescale-net` network. Set a strong password via `POSTGRES_PASSWORD` in `.env` (defaults to `voiceagent` if unset):
+Production uses `docker-compose.yml`, which includes a self-hosted PostgreSQL service on the shared `divescale-net` network. App containers connect via the unique hostname `voice-agent-postgres` (not `postgres`) so they do not hit another project's database on the same network. Set a strong password via `POSTGRES_PASSWORD` in `.env` (defaults to `voiceagent` if unset):
 
 ```bash
 docker compose up --build -d
