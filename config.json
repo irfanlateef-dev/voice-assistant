@@ -30,7 +30,7 @@
     "think": {
       "provider": {
         "type": "openrouter",
-        "model": "openrouter/free"
+        "model": "anthropic/claude-haiku-4.5"
       },
       "prompt": "",
       "max_completion_tokens": 3072
