@@ -63,7 +63,7 @@ services:
       SERVE_FRONTEND: "1"
       PORT: 8000
       TRUST_PROXY: "1"
-      CORS_ORIGINS: https://voice-assist.duckdns.org
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://assistantchef.cc,https://www.assistantchef.cc}
       <<: *db-environment
     depends_on:
       postgres:

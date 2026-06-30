@@ -15,8 +15,8 @@ docker compose up --build -d
 
 echo ""
 echo "==> Stack is starting."
-echo "    App:    http://localhost:${PORT:-8000}"
-echo "    Health: http://localhost:${PORT:-8000}/api/health"
+echo "    App:    https://assistantchef.cc"
+echo "    API:    https://assistantchef.cc/api/health"
 echo ""
 echo "Optional demo data:"
 echo "    docker compose --profile seed run --rm seed"

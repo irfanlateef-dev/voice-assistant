@@ -229,7 +229,18 @@ docker compose -f docker-compose.dev.yml run --rm migrate
 
 ## Production deployment
 
-Production uses `docker-compose.yml`, which includes a self-hosted PostgreSQL service on the shared `divescale-net` network. App containers connect via the unique hostname `voice-agent-postgres` (not `postgres`) so they do not hit another project's database on the same network. Set a strong password via `POSTGRES_PASSWORD` in `.env` (defaults to `voiceagent` if unset):
+Production uses `docker-compose.yml` at **[https://assistantchef.cc](https://assistantchef.cc)**. Nginx on the host reverse-proxies to the `web` container; the frontend is built with `VITE_API_BASE=""` so all API calls use same-origin paths (`/api/...`).
+
+The stack includes a self-hosted PostgreSQL service on the shared `divescale-net` network. App containers connect via the unique hostname `voice-agent-postgres` (not `postgres`) so they do not hit another project's database on the same network.
+
+In `.env` for production:
+
+```env
+TRUST_PROXY=1
+CORS_ORIGINS=https://assistantchef.cc,https://www.assistantchef.cc
+```
+
+Set a strong password via `POSTGRES_PASSWORD` in `.env` (defaults to `voiceagent` if unset):
 
 ```bash
 docker compose up --build -d

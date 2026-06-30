@@ -1,7 +1,8 @@
 {
-  "name": "VoiceAgent",
-  "short_name": "VoiceAgent",
-  "description": "AI voice assistant for tasks and notes",
+  "name": "HomeChef AI",
+  "short_name": "HomeChef",
+  "description": "Your AI kitchen companion — Grace guides you through recipes hands-free.",
+  "start_url": "/",
   "icons": [
     {
       "src": "/favicon.svg",
